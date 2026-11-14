@@ -31,7 +31,6 @@ GAME_NAMES: dict[str, str] = {
     "378": "Yalla Ludo",
     "385": "ChatGPT",
 }
-TOPUP_GAMES = GAME_NAMES  # old name, kept for compatibility
 _ACRONYMS = {"uc", "cp", "pubg", "codm", "fc", "gta", "pc", "ea", "nba", "ff", "mlbb", "vp", "rp"}
 
 
