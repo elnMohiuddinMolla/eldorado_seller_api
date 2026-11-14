@@ -1,0 +1,27 @@
+# Auto bidding config. Copy to bidding.toml (not committed) and fill in.
+# Only offers listed here are ever changed by `eldorado bid run`.
+# Get offer ids with: eldorado offers list
+
+# How much below the cheapest other seller to go (USD).
+undercut = "0.01"
+
+# Seconds between cycles (minimum 60).
+interval_seconds = 300
+
+# One [[offers]] block per TopUp offer.
+# min_price is required: the bot never goes below it, even if others do.
+# max_price is optional: when the bot raises your price, it stops here.
+# Write prices as strings ("0.85") so they stay exact.
+
+[[offers]]
+id = "00000000-0000-0000-0000-000000000000"
+note = "Call of Duty Mobile 80 CP"
+min_price = "0.85"
+max_price = "1.20"
+# allow_big_change = false   # set true to allow a single change over 50%
+# enabled = true
+
+[[offers]]
+id = "11111111-1111-1111-1111-111111111111"
+note = "Brawl Stars 30 Gems"
+min_price = "1.60"

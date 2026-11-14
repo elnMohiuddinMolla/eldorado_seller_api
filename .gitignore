@@ -1,0 +1,35 @@
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+
+# Personal bidding config (offer ids and price floors)
+bidding.toml
+
+# Audit logs (may contain offer and order ids)
+logs/
+
+# Browser network captures contain login cookies
+*.har
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Tests and tools
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
