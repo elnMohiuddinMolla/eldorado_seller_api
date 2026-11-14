@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import secrets
 import sys
+import time
 import threading
 import webbrowser
 from http import HTTPStatus
@@ -30,6 +31,7 @@ from eldorado.core.bidding_config import DEFAULT_BIDDING_PATH
 from eldorado.core.exceptions import ConfigError, EldoradoError
 from eldorado.core.instance_lock import BotLock
 from eldorado.core.logging import redact
+from eldorado.services.bidding import CycleReport
 from eldorado.services.bot_runner import BotRunner, set_paused
 from eldorado.services.dashboard import Dashboard
 from eldorado.services.order_watch import OrderWatcher
@@ -37,6 +39,7 @@ from eldorado.models.order import SellerOrder
 
 MAX_BODY_BYTES = 1_000_000
 DEFAULT_PORT = 8765
+CYCLE_HINT_SECONDS = 300
 
 
 def make_handler(
@@ -150,10 +153,43 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
 
+def _now() -> str:
+    return time.strftime("%H:%M:%S")
+
+
+STATE_TEXT = {
+    "running": "[bold green]Bot RUNNING[/bold green]: prices are managed.",
+    "paused": "[bold yellow]Bot PAUSED[/bold yellow]: nothing is sent. Click Bot on the page to run.",
+    "idle": "[yellow]Bot RUNNING, but no offer is ON[/yellow]. Turn offers ON on the page.",
+    "error": "[bold red]Bot PAUSED ITSELF after an error[/bold red]",
+    "stopped": "Bot stopped.",
+}
+
+
+def _announce_state(state: str, message: str) -> None:
+    text = STATE_TEXT.get(state, state)
+    if state == "error":
+        text += f": {escape(message)}"
+    console.print(f"{_now()} {text}")
+
+
+def _report_cycle(report: CycleReport) -> None:
+    """Full table only when something was sent or failed; otherwise one short line."""
+    changes = report.changes()
+    if changes:
+        _print_report(report)
+        return
+    skipped = sum(1 for d in report.decisions if d.kind == "skip")
+    nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + CYCLE_HINT_SECONDS))
+    console.print(f"{_now()} checked {len(report.decisions)} offer(s): 0 changed"
+                  + (f", {skipped} skipped" if skipped else "")
+                  + f". Next check about {nxt}.")
+
+
 def _announce_orders(orders: list[SellerOrder]) -> None:
     """New order: beep and print in the app window (the page shows its own alert)."""
     for order in orders:
-        console.print(f"[bold green]NEW ORDER[/bold green] {escape(order.game)} {escape(order.package)} "
+        console.print(f"{_now()} [bold green]NEW ORDER[/bold green] {escape(order.game)} {escape(order.package)} "
                       f"x{order.quantity}  {order.total} {order.currency}  ({escape(order.state)})")
     if sys.platform == "win32":
         import winsound
@@ -179,8 +215,9 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
             if with_bot:
                 runner = BotRunner(
                     OffersClient(bot_client), AuditLogger(), config_path,
-                    on_report=_print_report,
-                    log=lambda m: err_console.print(f"[yellow]{m}[/yellow]"),
+                    on_report=_report_cycle,
+                    log=lambda m: err_console.print(f"{_now()} [yellow]{escape(m)}[/yellow]"),
+                    on_state=_announce_state,
                 )
                 thread = threading.Thread(target=runner.loop, name="bot", daemon=True)
             watcher = OrderWatcher(order_client, on_new=_announce_orders,
@@ -191,8 +228,8 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
             url = f"http://127.0.0.1:{port}/"
             console.print(f"Settings page: [bold]{url}[/bold]  (only on this computer).")
             if with_bot:
-                console.print("Bot is [bold]PAUSED[/bold]. Click [bold]Bot[/bold] on the page to run it. "
-                              "Close this window (or Ctrl+C) to stop everything.")
+                console.print("Close this window (or Ctrl+C) to stop everything. "
+                              "Bot status changes appear below.")
                 assert thread is not None
                 thread.start()
             if not no_browser:

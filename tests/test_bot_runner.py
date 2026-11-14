@@ -102,3 +102,20 @@ def test_wake_runs_next_cycle_now_and_stop_ends_loop(mocked: respx.Route, base: 
     thread.join(timeout=5)
     assert not thread.is_alive()
     assert runner.status()["state"] == "stopped"
+
+
+def test_window_is_told_each_state_change_once(mocked: respx.Route, base: BaseClient, cfg: Path,
+                                               tmp_path: Path) -> None:
+    mocked.mock(return_value=httpx.Response(200))
+    seen: list[str] = []
+    runner = BotRunner(OffersClient(base), AuditLogger(tmp_path / "a.jsonl"), cfg,
+                       on_state=lambda state, message: seen.append(state))
+    set_paused(cfg, True)
+    runner.run_once()
+    runner.run_once()                 # still paused: no new line
+    set_paused(cfg, False)
+    runner.run_once()                 # RUN clicked
+    runner.run_once()                 # still running: no new line
+    set_paused(cfg, True)
+    runner.run_once()
+    assert seen == ["paused", "running", "paused"]

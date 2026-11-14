@@ -57,6 +57,7 @@ class BotRunner:
         *,
         on_report: Callable[[CycleReport], None] = lambda r: None,
         log: Callable[[str], None] = lambda m: None,
+        on_state: Callable[[str, str], None] = lambda state, message: None,
         clock: Callable[[], float] = time.time,
     ) -> None:
         self._offers = offers
@@ -64,6 +65,8 @@ class BotRunner:
         self._path = config_path
         self._on_report = on_report
         self._log = log
+        self._on_state = on_state
+        self._announced: str | None = None
         self._clock = clock
         self._wake = threading.Event()
         self._stop = threading.Event()
@@ -79,6 +82,11 @@ class BotRunner:
         with self._lock:
             for key, value in changes.items():
                 setattr(self._status, key, value)
+            state, message = self._status.state, self._status.message
+        # Tell the app window once per change of state (PAUSED -> RUNNING, error, ...).
+        if "state" in changes and state != self._announced:
+            self._announced = state
+            self._on_state(state, message)
 
     def wake(self) -> None:
         self._wake.set()
