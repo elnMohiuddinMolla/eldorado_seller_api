@@ -138,3 +138,9 @@ def test_bot_switch_pauses_without_touching_rules(server: str, cfg: Path) -> Non
     assert data["paused"] is True
     assert [o["id"] for o in data["offers"]] == ["other"]
     assert req(server + "/api/offers")[1]["paused"] is True
+
+
+def test_orders_endpoint_needs_token(server: str) -> None:
+    assert req(server + "/api/orders", token=None)[0] == 403
+    status, body = req(server + "/api/orders")
+    assert status == 200 and body == {"enabled": False}

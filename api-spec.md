@@ -170,7 +170,7 @@ Account offers also have secret-detail endpoints (`/api/flexibleOffersUser/me/of
 
 | Capability | PRD | Method & Path | Params / Body | Response |
 |---|---|---|---|---|
-| List seller orders | F5 | `GET /api/v1/orders/me/seller/orders` | query `displayFilter*` (`DisplaySellingOrders` for sold orders), `orderState` (`OrderStateViewModel`), `gameId`, `category`, `query`, `isAscendingDateOrder`, `ignorePendingReviewOrders`, `filterByActiveWarranty`, `orderGroup`, `pageSize`, `cursorValue`, `cursorColumn`, `pageDirection` | `CursorBasedPagedResult<OrderPrivateViewModel>` |
+| List seller orders | F5, F18 | `GET /api/v1/orders/me/seller/orders` | query `displayFilter*` (`DisplaySellingOrders` for sold orders), `orderState` (`OrderStateViewModel`), `gameId`, `category`, `query`, `isAscendingDateOrder`, `ignorePendingReviewOrders`, `filterByActiveWarranty`, `orderGroup`, `pageSize`, `cursorValue`, `cursorColumn`, `pageDirection` | `CursorBasedPagedResult<OrderPrivateViewModel>` |
 | Mark delivered | F6 | `PUT /api/v1/orders/me/{orderId}/deliver` | **no body** | `OrderGetSellerPrivateDTO` |
 | Cancel | F11 | `POST /api/v1/orders/me/{orderId}/cancel` | body `CancelationPostSellerDTO` | `OrderGetSellerPrivateDTO` |
 | Extend delivery time | F11 | `POST /api/v1/orders/me/{orderId}/extend-delivery-time` | body `ExtendDeliveryTimeRequestDTO` | 204 |

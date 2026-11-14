@@ -58,6 +58,10 @@ tr.dirty td:first-child { box-shadow: inset 3px 0 var(--accent); }
 #msg.bad { display: block; background: var(--bad-bg); color: var(--bad); }
 #msg.info { display: block; background: var(--warn-bg); color: var(--warn); }
 .help { margin: 0 0 14px; color: var(--muted); }
+.cardhead { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+#orderBanner { padding: 14px 16px; border-radius: 10px; margin-bottom: 12px; font-size: 16px; font-weight: 600;
+               background: var(--ok-bg); color: var(--ok); border: 2px solid var(--ok); cursor: pointer; }
+tr.late td { color: var(--bad); }
 .help b { color: var(--text); }
 </style>
 </head>
@@ -75,7 +79,20 @@ tr.dirty td:first-child { box-shadow: inset 3px 0 var(--accent); }
   <button id="save" class="primary" disabled>Save</button>
 </header>
 <main>
+  <div id="orderBanner" role="alert" style="display:none"></div>
   <div id="msg"></div>
+  <div class="card" id="ordersCard">
+    <div class="cardhead"><b>Orders waiting for delivery</b>
+      <span id="ordersInfo" class="note"></span>
+      <span class="spacer"></span>
+      <button id="notifyBtn" style="display:none">Turn on desktop alerts</button>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>Game</th><th>Package</th><th class="num">Qty</th><th class="num">Total</th>
+        <th class="num">Waiting</th><th>State</th></tr></thead>
+      <tbody id="orderRows"><tr><td colspan="6" class="note">Checking orders...</td></tr></tbody>
+    </table></div>
+  </div>
   <p class="help"><b>Min</b> = never sell below this. <b>Max</b> = highest price when a cheaper seller
   disappears and the bot looks for the next one. Turn <b>ON</b> to let the bot manage the offer. The <b>Bot</b> button pauses or resumes all offers at once.
   Saving or switching takes effect right away.
@@ -238,6 +255,81 @@ async function preview() {
     msg("ok", "Preview ready. Nothing was sent to Eldorado.");
   } catch (e) { msg("bad", "Preview failed: " + e.message); }
 }
+
+// ---------- orders (F18) ----------
+let knownOrders = null;          // ids seen by this page; null until the first answer
+let unread = 0;
+const baseTitle = document.title;
+
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25].forEach((t) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.25, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2);
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.2);
+    });
+  } catch (e) {}
+}
+
+function waited(min) {
+  if (min == null) return "-";
+  if (min < 60) return min + " min";
+  if (min < 1440) return Math.floor(min / 60) + " h " + (min % 60) + " min";
+  return Math.floor(min / 1440) + " d " + Math.floor((min % 1440) / 60) + " h";
+}
+
+function alertNew(orders) {
+  unread += orders.length;
+  document.title = "(" + unread + ") New order - " + baseTitle;
+  const text = orders.map((o) => o.game + " " + o.package + " x" + o.quantity + " (" + o.total + " " + o.currency + ")").join(", ");
+  const b = $("orderBanner");
+  b.textContent = "NEW ORDER: " + text + "  (click to dismiss)";
+  b.style.display = "";
+  beep();
+  if ("Notification" in window && Notification.permission === "granted") {
+    try { new Notification("New Eldorado order", { body: text, requireInteraction: true }); } catch (e) {}
+  }
+}
+
+$("orderBanner").addEventListener("click", () => {
+  $("orderBanner").style.display = "none"; unread = 0; document.title = baseTitle;
+});
+
+function showNotifyButton() {
+  const btn = $("notifyBtn");
+  btn.style.display = ("Notification" in window && Notification.permission === "default") ? "" : "none";
+}
+$("notifyBtn").addEventListener("click", async () => {
+  try { await Notification.requestPermission(); } catch (e) {}
+  showNotifyButton();
+});
+
+async function refreshOrders() {
+  let o;
+  try { o = await call("GET", "/api/orders"); }
+  catch (e) { $("ordersInfo").textContent = "orders unavailable: " + e.message; return; }
+  if (o.enabled === false) { $("ordersCard").style.display = "none"; return; }
+  const ids = new Set([...o.pending, ...o.alerts].map((x) => x.id));
+  if (knownOrders === null) { knownOrders = ids; }
+  else {
+    const fresh = o.alerts.filter((x) => !knownOrders.has(x.id));
+    ids.forEach((id) => knownOrders.add(id));
+    if (fresh.length) alertNew(fresh);
+  }
+  $("ordersInfo").textContent = (o.error ? "last check failed: " + o.error + ". " : "") +
+    (o.last_check ? "Checked " + o.last_check + ", every minute." : "First check running...");
+  $("orderRows").innerHTML = o.pending.map((x) =>
+    "<tr" + (x.age_minutes > 60 ? ' class="late"' : "") + "><td>" + esc(x.game) + "</td><td>" + esc(x.package) +
+    '</td><td class="num">' + esc(x.quantity) + '</td><td class="num">' + esc(x.total) + " " + esc(x.currency) +
+    '</td><td class="num">' + esc(waited(x.age_minutes)) + '</td><td><span class="pill warn">' + esc(x.state) +
+    "</span></td></tr>").join("") || '<tr><td colspan="6" class="note">No order is waiting. </td></tr>';
+}
+showNotifyButton();
+refreshOrders();
+setInterval(refreshOrders, 20000);
 
 $("reload").addEventListener("click", load);
 $("save").addEventListener("click", save);

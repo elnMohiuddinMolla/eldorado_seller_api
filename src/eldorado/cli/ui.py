@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import secrets
+import sys
 import threading
 import webbrowser
 from http import HTTPStatus
@@ -18,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from rich.markup import escape
 
 from eldorado.cli.bid import _print_report
 from eldorado.cli.shared import console, err_console, fail, open_client
@@ -30,13 +32,16 @@ from eldorado.core.instance_lock import BotLock
 from eldorado.core.logging import redact
 from eldorado.services.bot_runner import BotRunner, set_paused
 from eldorado.services.dashboard import Dashboard
+from eldorado.services.order_watch import OrderWatcher
+from eldorado.models.order import SellerOrder
 
 MAX_BODY_BYTES = 1_000_000
 DEFAULT_PORT = 8765
 
 
 def make_handler(
-    dashboard: Dashboard, token: str, port: int, runner: BotRunner | None = None
+    dashboard: Dashboard, token: str, port: int, runner: BotRunner | None = None,
+    watcher: OrderWatcher | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     page = PAGE.replace("__TOKEN__", token).encode("utf-8")
@@ -98,6 +103,9 @@ def make_handler(
             elif self.path == "/api/offers":
                 if self._guard(need_token=True):
                     self._run(dashboard.rows)
+            elif self.path == "/api/orders":
+                if self._guard(need_token=True):
+                    self._json(HTTPStatus.OK, watcher.snapshot() if watcher else {"enabled": False})
             elif self.path == "/api/status":
                 if self._guard(need_token=True):
                     self._json(HTTPStatus.OK, runner.status() if runner else {"state": "none"})
@@ -140,6 +148,19 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
 
+def _announce_orders(orders: list[SellerOrder]) -> None:
+    """New order: beep and print in the app window (the page shows its own alert)."""
+    for order in orders:
+        console.print(f"[bold green]NEW ORDER[/bold green] {escape(order.game)} {escape(order.package)} "
+                      f"x{order.quantity}  {order.total} {order.currency}  ({escape(order.state)})")
+    if sys.platform == "win32":
+        import winsound
+
+        winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+    else:
+        console.bell()
+
+
 def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) -> None:
     token = secrets.token_urlsafe(24)
     runner: BotRunner | None = None
@@ -150,7 +171,8 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
             lock.acquire()  # refuse to start a second bot
             # Safe start: nothing is sent until the user clicks RUN on the page.
             set_paused(config_path, True)
-        with open_client() as page_client, open_client() as bot_client:
+        with open_client() as page_client, open_client() as bot_client, \
+                open_client() as order_client:
             dashboard = Dashboard(OffersClient(page_client), config_path)
             if with_bot:
                 runner = BotRunner(
@@ -159,7 +181,11 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
                     log=lambda m: err_console.print(f"[yellow]{m}[/yellow]"),
                 )
                 thread = threading.Thread(target=runner.loop, name="bot", daemon=True)
-            server = LocalServer(("127.0.0.1", port), make_handler(dashboard, token, port, runner))
+            watcher = OrderWatcher(order_client, on_new=_announce_orders,
+                                   log=lambda m: err_console.print(f"[yellow]{m}[/yellow]"))
+            threading.Thread(target=watcher.loop, name="orders", daemon=True).start()
+            server = LocalServer(("127.0.0.1", port),
+                                 make_handler(dashboard, token, port, runner, watcher))
             url = f"http://127.0.0.1:{port}/"
             console.print(f"Settings page: [bold]{url}[/bold]  (only on this computer).")
             if with_bot:
@@ -176,6 +202,7 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
             finally:
                 if runner is not None:
                     runner.stop()
+                watcher.stop()
                 server.server_close()
     except OSError as exc:
         console.print(f"[red]Could not start on port {port}:[/red] {exc.strerror}. "

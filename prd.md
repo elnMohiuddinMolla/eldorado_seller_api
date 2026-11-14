@@ -50,6 +50,7 @@ TopUp offer Swagger er **Predefined offer** API te pore (`/api/predefinedOffers/
 | F8 | **Dry-run mode** | Shob write command e `--dry-run`. Ki bodlabe dekhabe, kintu kono write request pathabe na. |
 | F15 | **Audit log** | Protita change (dry-run shoho) `logs/audit.jsonl` e likhe rakha. |
 | F16 | **Auto bidding** | Protita TopUp offer er jonno same game ar same package er onno seller der shobcheye kom Active price khuje, tar cheye **0.01 kom** price set kora. Already shobcheye kom thakle price **jemon ache temon thake** (API 2nd price dey na, nicher 9.1 dekhun). Protita offer er **fixed minimum price (floor)** er niche kokhono namabe na. Shudhu `bidding.toml` e lekha offer gulo te chalbe. Proti **5 minute** por por chalbe. |
+| F18 | **Notun order alert** | `ui`/`app` proti 60 second e seller order pore (shudhu read, `GET /api/v1/orders/me/seller/orders`). Notun order ashle page e banner + shobdo + tab title, desktop notification (allow korle), app window e beep. Page e "Orders waiting for delivery" table (Paid order, koto khon opekkha, 1 ghontar beshi hole lal). App start er age er order e alert hoy na. Buyer er tottho rakha hoy na, disk e o lekha hoy na. |
 | F17 | **Settings page** | `eldorado ui` ekta local web page khole (`http://127.0.0.1:8765`, shudhu ei computer e). Protita offer er market price dekhay, Min, Max, ON/OFF edit kore `bidding.toml` e save kore. **Preview** dekhay bot ki price set korto, kichu pathay na. Page theke Eldorado te kono write jay na. Notun dependency nei (Python `http.server`). |
 
 ### 4.2 Phase 2

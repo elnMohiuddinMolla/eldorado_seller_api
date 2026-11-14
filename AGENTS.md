@@ -73,6 +73,7 @@ eldorado_Seller_Api/
 │   │   ├── account.py
 │   │   ├── bidding.py          # decide() + Bidder (F16)
 │   │   ├── bot_runner.py       # bot thread for `eldorado app`
+│   │   ├── order_watch.py      # new-order alert (F18), read-only
 │   │   └── dashboard.py        # page data, save, preview
 │   ├── client/                 # HTTP only
 │   │   ├── auth.py             # Token manager
