@@ -2,103 +2,103 @@
 
 Source: https://support.eldorado.gg/en/articles/16127288-how-the-seller-api-works
 
-Article e lekha "Updated over a week ago". Ei notes 2026-11-14 tarikhe article er sathe milano hoyeche.
+The article says "Updated over a week ago". These notes were checked against the article on 2026-11-14.
 
 ## Overview
 
-Seller API diye verified seller ra nijer software theke offer ar order manage korte pare. Eta tader jonno banano jader onek offer ache ar ek-i kaj bar bar kora automate korte chan.
+With the Seller API, verified sellers can manage their offers and orders from their own software. It is made for sellers with many offers who want to automate repetitive work.
 
-- **Shudhu verified seller ra** Seller API use korte pare.
-- Ekta account e shorbochcho **2 ta active credential** thakte pare.
-- **Test environment nei.** Protita request live offer ar order bodle dey, tai prothome ekta offer diye try korun.
+- **Only verified sellers** can use the Seller API.
+- An account can have at most **2 active credentials**.
+- **There is no test environment.** Every request changes live offers and orders, so try with one offer first.
 
-## Ki kora jay
+## What You Can Do
 
 ### Offers
-- Currency, top-up, item, account ar boosting offer create, update, pause, resume ar delete kora jay.
-- Ekta offer ba pura ekta game er shob offer er price, quantity ar delivery time bodlano jay.
-- CSV file diye onek offer ek sathe (bulk) upload kora jay.
+- Create, update, pause, resume and delete currency, top-up, item, account and boosting offers.
+- Change the price, quantity and delivery time of one offer or of every offer of a game.
+- Upload many offers at once (bulk) with a CSV file.
 
 ### Orders
-- Order dekha jay.
-- Order delivered mark kora jay.
-- Order cancel kora jay.
-- Delivery details thik kora jay.
-- Invoice banano jay.
+- View orders.
+- Mark orders as delivered.
+- Cancel orders.
+- Correct delivery details.
+- Generate invoices.
 
 ### Account
-- Nijeke online ba offline kora jay.
-- Notification pora jay.
-- Account restriction dekha jay.
+- Set yourself online or offline.
+- Read notifications.
+- View account restrictions.
 
-## Ki kora jay na
+## What You Cannot Do
 
-- Withdrawal ar balance
-- Message, dispute ar feedback
-- Account settings, verification ar offer limit request
-- Offer er chobi ar sales report
+- Withdrawals and balance
+- Messages, disputes and feedback
+- Account settings, verification and offer limit requests
+- Offer images and sales reports
 
-## Credential banano
+## Creating Credentials
 
-1. **Dashboard > Seller API** te jan (https://www.eldorado.gg/dashboard/seller-api).
-2. "Generate API client credentials" er niche credential er ekta naam din, jeta pore chinte parben.
-3. Meyad bachhun: 1, 14, 30, 90 ba 365 din.
-4. "Generate credentials" e click korun.
-5. Je window khulbe sekhan theke **Client ID** ar **Client secret** copy korun.
-6. Duto-i kothao safe kore rakhun (jemon password manager e), tarpor window ta bondho korun.
+1. Go to **Dashboard > Seller API** (https://www.eldorado.gg/dashboard/seller-api).
+2. Under "Generate API client credentials", give the credential a name you will recognize later.
+3. Choose an expiry: 1, 14, 30, 90 or 365 days.
+4. Click "Generate credentials".
+5. Copy the **Client ID** and **Client secret** from the window that opens.
+6. Store both somewhere safe (e.g. a password manager), then close the window.
 
-> **Sotorkota:** Client secret **shudhu ekbar dekhay**. Window bondho korar por ar ferot pawa jay na. Jar kache secret thakbe se apnar offer ar order manage korte parbe. Tai eta karo sathe share korben na, kothao post korben na, screenshot eo rakhben na.
+> **Warning:** The Client secret is **shown only once**. It cannot be retrieved after the window is closed. Anyone who has the secret can manage your offers and orders. So never share it, never post it anywhere, and never keep a screenshot of it.
 
 ## Authentication
 
-1. **Access token nin:** Client ID ar Client secret `POST` kore pathan:
+1. **Get an access token:** send the Client ID and Client secret with `POST`:
    ```
    POST https://eldorado.gg/api/authentication/seller/token
    ```
-2. **Token use korun:** Protita API request er `Authorization` header e token ta din.
-3. **Token refresh korun:** Access token **15 minute** por expire hoye jay. Tokhon upore dewa niyome notun token nin.
+2. **Use the token:** put it in the `Authorization` header of every API request.
+3. **Refresh the token:** the access token expires after **15 minutes**. Then get a new one the same way.
 
-Article e body format nei, kintu **Seller API dashboard** e ache (2026-11-14):
+The article has no body format, but the **Seller API dashboard** does (2026-11-14):
 
 - Request (JSON): `{"clientId": "<your_client_id>", "clientSecret": "<your_client_secret>"}`
 - Response: `{"accessToken": "<your_access_token>", "expiresIn": 900, "tokenType": "Bearer"}`
 - Header: `Authorization: Bearer <access_token>`
-- Dashboard er example endpoint: `PUT https://eldorado.gg/api/orders/me/{orderId}/delivered` (request body dashboard e shudhu `{"..."}` dekhay, mane ekhono jana nei)
+- The dashboard's example endpoint: `PUT https://eldorado.gg/api/orders/me/{orderId}/delivered` (the dashboard shows the request body only as `{"..."}`, so it is still unknown)
 
-## Je tottho article e nei
+## What the Article Does Not Cover
 
-- Offer, order ar account er **endpoint list** (deliver chara), HTTP method ar request/response format
-- **Rate limit**
-- Swagger/OpenAPI ba developer portal er link
+- The **endpoint list** for offers, orders and account (except deliver), HTTP methods and request/response formats
+- **Rate limits**
+- A link to Swagger/OpenAPI or a developer portal
 
-Dashboard e **"View more endpoints"** link e pura endpoint list ache. Seta theke `api-spec.md` update korte hobe. Na pele support ke email korun.
+The **"View more endpoints"** link on the dashboard has the full endpoint list. Update `api-spec.md` from it. If it is not available, email support.
 
-## Credential manage ar revoke kora
+## Managing and Revoking Credentials
 
-- Seller API page e protita active credential er naam, Client ID, Client secret er shesh 4 ta character ar meyad shesh hobar tarikh dekhay.
-- **Kaj na thamiye credential bodlate:** notun credential banan, app ke notun ta te switch korun, tarpor puran ta revoke korun.
-- Revoke shathe shathe kaj kore ar undo kora jay na. Tokhon app ar notun token nite pare na, ar je token age dewa hoyechilo segulo 15 minute er moddhe bondho hoye jay.
+- The Seller API page shows each active credential's name, Client ID, the last 4 characters of the Client secret and the expiry date.
+- **To rotate a credential without stopping work:** create a new credential, switch the app to the new one, then revoke the old one.
+- Revoking takes effect immediately and cannot be undone. The app can no longer get new tokens, and tokens issued earlier stop working within 15 minutes.
 
 ## Troubleshooting
 
-| Somossa | Ki korben |
+| Problem | What to do |
 |---|---|
-| Client secret hariye geche | Eta ferot pawa jay na. Credential ta revoke kore notun ekta banan, tarpor app e update korun. |
-| Credential er meyad shesh | Notun credential banan ar app e update korun. Meyad kobe shesh hobe ta age thekei dekhe rakhun. |
-| Generate button kaj korche na | Apnar already 2 ta active credential ache. Je ta use koren na seta revoke korun. |
-| API request reject hochhe | Token ta shomvoboto expire hoye geche, notun token nin. Token request-o fail korle dekhun credential revoke hoyeche naki meyad shesh hoyeche. |
-| Secret leak hoye gele | Shathe shathe credential revoke korun ar notun ekta banan. |
+| Lost the Client secret | It cannot be recovered. Revoke the credential, create a new one, then update the app. |
+| The credential expired | Create a new credential and update the app. Keep track of the expiry date in advance. |
+| The Generate button does nothing | You already have 2 active credentials. Revoke the one you do not use. |
+| API requests are rejected | The token has probably expired; get a new one. If the token request also fails, check whether the credential was revoked or has expired. |
+| The secret leaked | Revoke the credential right away and create a new one. |
 
 ## Support
 
-Notun credential banano-r porou request fail korle, ba docs e uttor na pele, email e support er sathe jogajog korun. Email e egulo din:
-- Apnar Client ID (Client secret **kokhono-i** deben na)
-- Kon endpoint call korechilen ar kon shomoy
-- Pura error message
+If requests still fail after creating a new credential, or the docs do not answer your question, contact support by email. Include:
+- Your Client ID (**never** send the Client secret)
+- Which endpoint you called and when
+- The full error message
 
-Support email: **api@eldorado.gg** (article ar dashboard e deya). Chat ba contact form er kotha bola nei.
+Support email: **api@eldorado.gg** (given in the article and on the dashboard). Chat or a contact form is not mentioned.
 
-## Related links
+## Related Links
 
 - Seller API dashboard: https://www.eldorado.gg/dashboard/seller-api
 - Currency seller guidelines: https://support.eldorado.gg/en/articles/13917846-currency-seller-guidelines

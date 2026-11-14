@@ -45,8 +45,8 @@ Do not add a dependency that is not listed here without updating `prd.md` first.
 eldorado_Seller_Api/
 ├── AGENTS.md                   # This file
 ├── README.md                   # User guide (English)
-├── prd.md                      # Product requirements, source of truth (Bangla)
-├── ELDORADO_SELLER_API.md      # Notes from the official article (Bangla)
+├── prd.md                      # Product requirements, source of truth
+├── ELDORADO_SELLER_API.md      # Notes from the official article
 ├── api-spec.md                 # API spec (confirmed / assumed / unknown)
 ├── architecture.md             # Architecture
 ├── database.md                 # Local data and audit log format
@@ -59,6 +59,7 @@ eldorado_Seller_Api/
 ├── logs/                       # audit.jsonl, bot.lock (ignored by git)
 ├── src/eldorado/
 │   ├── __init__.py
+│   ├── __main__.py             # `python -m eldorado`
 │   ├── cli/                    # Typer commands
 │   │   ├── main.py
 │   │   ├── offers.py
@@ -183,8 +184,7 @@ Only when the user asks for it, and only with endpoints marked `[Confirmed]`:
 
 ## 6. Documentation Language
 
-- User docs: `README.md` in English; `prd.md` and `ELDORADO_SELLER_API.md` in Bangla.
-- Technical and agent docs (all other `.md` files): English.
+- All docs, user and technical, are in English.
 
 ---
 

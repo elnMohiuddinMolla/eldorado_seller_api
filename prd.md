@@ -3,158 +3,180 @@
 | | |
 |---|---|
 | **Status** | Draft v0.3 |
-| **Tarikh** | 2026-11-14 |
+| **Date** | 2026-11-14 |
 | **Reference** | [ELDORADO_SELLER_API.md](ELDORADO_SELLER_API.md), [api-spec.md](api-spec.md) |
 
-> **Note:** Ei PRD Eldorado er help article er upor base kore lekha. Offer, order ar account er endpoint er docs ekhono hate ashe ni. Je jinish dhore neya hoyeche seta **(Assumption)** diye mark kora. Ja uttor dorkar seta "Open Questions" e ache.
+> **Note:** This PRD is based on Eldorado's help article. Docs for the offer, order and account endpoints are not in hand yet. Anything assumed is marked **(Assumption)**. Questions that need an answer are in "Open Questions".
 >
-> **Ei file ta project er source of truth.** Tech stack, folder structure, CLI command ar safety rule ekhane final kora. Onno file er sathe ei file er na mille ei file ta thik dhorte hobe, ar onno file ta update korte hobe.
+> **This file is the project's source of truth.** The tech stack, folder structure, CLI commands and safety rules are final here. If another file disagrees with this one, this file is right and the other file must be updated.
 
 ## 1. Problem
 
-Eldorado te jader onek offer ache, tader protidin hate onek kaj korte hoy: price bodlano, stock (quantity) update kora, order deliver mark kora, online/offline hoya. Website e eshob ekta ekta kore korte onek shomoy lage ar bhul hoyar chance thake.
+Sellers with many offers on Eldorado do a lot of manual work every day: changing prices, updating stock (quantity), marking orders delivered, going online/offline. Doing this one by one on the website takes a lot of time and invites mistakes.
 
 ## 2. Goal
 
-Eldorado Seller API use kore ekta tool banano jeta seller er bar bar kora kaj gulo automate korbe.
+Build a tool on the Eldorado Seller API that automates the seller's repetitive tasks.
 
-**Success metric:**
-- Ek command e ek game er shob offer er price update kora jabe.
-- Token expire hole tool nijei notun token nebe, user ke kichu korte hobe na.
-- Kono Client secret ba access token code, log, disk ba git e jabe na.
+**Success metrics:**
+- One command can update the price of every offer of a game.
+- When the token expires, the tool gets a new one by itself; the user does nothing.
+- No Client secret or access token ever goes into code, logs, disk or git.
 
 ## 3. User
 
-- **Primary:** Eldorado er verified seller (apni nije), jar onek offer ache. **Shudhu verified seller ra Seller API use korte pare.**
-- **Secondary (pore):** Team account er member ra. **(Assumption: team member ra API use korte parbe kina article e bola nei.)**
+- **Primary:** a verified Eldorado seller (you) with many offers. **Only verified sellers can use the Seller API.**
+- **Secondary (later):** members of a team account. **(Assumption: the article does not say whether team members can use the API.)**
 
 ## 4. Scope
 
 ### 4.0 Focus (2026-11-14)
 
-User shudhu **TopUp offer** niye kaj korbe, **je kono game er**. Account e notun TopUp offer upload korle page e nijei ashe, delete korle chole jay, ar Save e tar settings o muche jay. Ekhon: CODM, Brawl Stars, Clash of Clans, Clash Royale, Roblox, PUBG Mobile, TikTok, Free Fire, Yalla Ludo, ChatGPT. Mul kaj holo **auto bidding (F16)**. Baki feature banano thakbe, kintu agrader na.
+The user works only with **TopUp offers**, **of any game**. A new TopUp offer uploaded to the account appears on the page by itself; a deleted one disappears, and Save removes its settings too. Currently: CODM, Brawl Stars, Clash of Clans, Clash Royale, Roblox, PUBG Mobile, TikTok, Free Fire, Yalla Ludo, ChatGPT. The main feature is **auto bidding (F16)**. The other features stay built but are not the priority.
 
-TopUp offer Swagger er **Predefined offer** API te pore (`/api/predefinedOffers/...`). **(Assumption:** prothom read-only call e confirm korte hobe.)
+TopUp offers fall under Swagger's **Predefined offer** API (`/api/predefinedOffers/...`). **(Assumption:** to be confirmed with the first read-only call.)
 
 ### 4.1 MVP (Phase 1)
 
 | # | Feature | Description |
 |---|---|---|
-| F1 | **Auth / Token manager** ✅ | `.env` theke Client ID ar secret pora. `POST https://eldorado.gg/api/authentication/seller/token` diye token neya. Token 15 minute por expire hoy, tai 60 second baki thakte notun token neya. Request authentication er karone reject hole notun token niye **ekbar** abar try kora. (**Assumption:** reject hole status code 401 ashe.) |
-| F2 | **Offer list** | Offer dekha, game ba status (active/paused) diye filter kora. (**Assumption:** API te list operation ache. Article e list er kotha alada kore bola nei.) |
-| F3 | **Offer update** | Ekta offer ba ek game er shob offer er price, quantity ar delivery time update kora. |
-| F4 | **Pause / resume** | Ekta ba onek offer pause ar resume kora. |
-| F5 | **Order list** | Order dekha, status diye filter kora. |
-| F6 | **Mark delivered** | Order ke delivered mark kora. |
-| F7 | **Online / offline** | Seller status online ba offline kora. |
-| F8 | **Dry-run mode** | Shob write command e `--dry-run`. Ki bodlabe dekhabe, kintu kono write request pathabe na. |
-| F15 | **Audit log** | Protita change (dry-run shoho) `logs/audit.jsonl` e likhe rakha. |
-| F16 | **Auto bidding** | Protita TopUp offer er jonno same game ar same package er onno seller der shobcheye kom Active price khuje, tar cheye **0.01 kom** price set kora. Already shobcheye kom thakle price **jemon ache temon thake** (API 2nd price dey na, nicher 9.1 dekhun). Protita offer er **fixed minimum price (floor)** er niche kokhono namabe na. Shudhu `bidding.toml` e lekha offer gulo te chalbe. Proti **5 minute** por por chalbe. |
-| F18 | **Notun order alert** | `ui`/`app` proti 60 second e seller order pore (shudhu read, `GET /api/v1/orders/me/seller/orders`). Notun order ashle page e banner + shobdo + tab title, desktop notification (allow korle), app window e beep. Page e "Orders waiting for delivery" table (Paid order, koto khon opekkha, 1 ghontar beshi hole lal). App start er age er order e alert hoy na. Buyer er tottho rakha hoy na, disk e o lekha hoy na. |
-| F17 | **Settings page** | `eldorado ui` ekta local web page khole (`http://127.0.0.1:8765`, shudhu ei computer e). Protita offer er market price dekhay, Min, Max, ON/OFF edit kore `bidding.toml` e save kore. **Preview** dekhay bot ki price set korto, kichu pathay na. Page theke Eldorado te kono write jay na. Notun dependency nei (Python `http.server`). |
+| F1 | **Auth / Token manager** ✅ | Read the Client ID and secret from `.env`. Get a token with `POST https://eldorado.gg/api/authentication/seller/token`. The token expires after 15 minutes, so get a new one when 60 seconds are left. If a request is rejected for authentication, get a new token and try **once** more. (**Assumption:** a rejection returns status code 401.) |
+| F2 | **Offer list** | Show offers, filter by game or status (active/paused). (**Assumption:** the API has a list operation. The article does not mention listing separately.) |
+| F3 | **Offer update** | Update the price, quantity and delivery time of one offer or of every offer of a game. |
+| F4 | **Pause / resume** | Pause and resume one or many offers. |
+| F5 | **Order list** | Show orders, filter by status. |
+| F6 | **Mark delivered** | Mark an order as delivered. |
+| F7 | **Online / offline** | Set the seller status online or offline. |
+| F8 | **Dry-run mode** | `--dry-run` on every write command. Shows what would change, but sends no write request. |
+| F15 | **Audit log** | Record every change (including dry runs) in `logs/audit.jsonl`. |
+| F16 | **Auto bidding** | For each TopUp offer, find the lowest Active price of other sellers for the same game and the same package, and set the price **0.01 lower**. If already the lowest, the price **stays as it is** (the API does not give the 2nd price, see 9.1 below). Never go below each offer's **fixed minimum price (floor)**. Runs only on the offers listed in `bidding.toml`. Runs every **5 minutes**. |
+| F18 | **New order alert** | `ui`/`app` reads seller orders every 60 seconds (read-only, `GET /api/v1/orders/me/seller/orders`). A new order triggers a banner + sound + tab title on the page, a desktop notification (if allowed) and a beep in the app window. The page has an "Orders waiting for delivery" table (Paid orders, how long they have waited, red after 1 hour). No alert for orders that existed before the app started. Buyer information is not kept and never written to disk. |
+| F17 | **Settings page** | `eldorado ui` opens a local web page (`http://127.0.0.1:8765`, on this computer only). It shows each offer's market price, and edits Min, Max and ON/OFF, saving them to `bidding.toml`. **Preview** shows what prices the bot would set, and sends nothing. The page never sends a write to Eldorado. No new dependency (Python `http.server`). |
 
 ### 4.2 Phase 2
 
 | # | Feature | Description |
 |---|---|---|
-| F9 | **Offer create / delete** | Currency, top-up, item, account ar boosting offer banano ar delete kora. |
-| F10 | **CSV bulk upload** | CSV file theke onek offer ek sathe upload kora. |
-| F11 | **Order cancel / delivery details thik kora** | Order cancel kora ar delivery details correct kora. |
-| F12 | **Invoice** | Order er invoice generate kora. |
-| F13 | **Notifications ar restrictions** | Notification pora ar account restriction check kora. |
-| F14 | **Scheduler** | Nirdishto shomoy por por kaj chalano, jemon protidin raat 12 tay offline hoya. |
+| F9 | **Offer create / delete** | Create and delete currency, top-up, item, account and boosting offers. |
+| F10 | **CSV bulk upload** | Upload many offers at once from a CSV file. |
+| F11 | **Order cancel / fix delivery details** | Cancel orders and correct delivery details. |
+| F12 | **Invoice** | Generate an order's invoice. |
+| F13 | **Notifications and restrictions** | Read notifications and check account restrictions. |
+| F14 | **Scheduler** | Run tasks at set times, e.g. go offline every night at 12. |
 
 ### 4.3 Out of Scope
 
-Eldorado API egulo support kore na, tai ei tool o korbe na:
-- Withdrawal ar balance
-- Message, dispute ar feedback
-- Account settings, verification ar offer limit request
-- Offer er chobi ar sales report
+The Eldorado API does not support these, so this tool will not either:
+- Withdrawals and balance
+- Messages, disputes and feedback
+- Account settings, verification and offer limit requests
+- Offer images and sales reports
 
-Ar ekta jinish scope er baire: **website er internal endpoint** (browser dev tools ba HAR file theke pawa) use kora hobe na. Shudhu official Seller API use hobe.
+One more thing is out of scope: **the website's internal endpoints** (found through browser dev tools or HAR files) will not be used. Only the official Seller API is used.
 
 ## 5. Requirements
 
 ### 5.1 Functional
-- Protita API call er age valid token thakte hobe (F1).
-- Je command offer ba order bodlay, seta chalanor age dekhabe ki bodlabe (before ar after), ar `--yes` na dile confirm chaibe.
-- Bulk update er por kotogula offer success hoyeche ar kotogula fail hoyeche tar summary dekhabe.
+- A valid token must exist before every API call (F1).
+- A command that changes offers or orders shows what will change (before and after) before running, and asks for confirmation unless `--yes` is given.
+- After a bulk update, show a summary of how many offers succeeded and how many failed.
 
 ### 5.2 Security
-- Client ID ar secret shudhu `.env` file e thakbe. `.env` file `.gitignore` e thakbe.
-- Access token **shudhu memory te** thakbe. Disk, database ba log e lekha hobe na.
-- Log, error message ar terminal e secret ba token kokhono dekhabe na. Dekhanor dorkar hole `***REDACTED***` dekhabe.
-- Ekta `.env.example` file thakbe, jekhane asol value na, shudhu field er naam thakbe.
+- The Client ID and secret live only in the `.env` file. `.env` is listed in `.gitignore`.
+- The access token lives **in memory only**. It is never written to disk, a database or a log.
+- Logs, error messages and the terminal never show a secret or token. Where one would appear, show `***REDACTED***`.
+- There is a `.env.example` file with only the field names, no real values.
 
-### 5.3 Reliability (retry niyom)
+### 5.3 Reliability (retry rules)
 
-| Ki hoyeche | Tool ki korbe |
+| What happened | What the tool does |
 |---|---|
-| Authentication er karone reject | Notun token niye **1 bar** retry, abar fail hole error dekhabe |
-| Too many requests (rate limit, **Assumption:** 429) | `Retry-After` thakle seta mene opekkha, shorbochcho 3 bar |
-| Read request e network ba 5xx error | Exponential backoff + jitter, shorbochcho 3 bar |
-| **Write** request e timeout, network ba 5xx error | **Automatic retry korbe na.** Change ta hoyeche kina jana jay na, tai user ke bolbe dashboard e check korte |
+| Rejected for authentication | Get a new token and retry **once**; if it fails again, show an error |
+| Too many requests (rate limit, **Assumption:** 429) | Wait, honoring `Retry-After` when present, at most 3 tries |
+| Network or 5xx error on a read request | Exponential backoff + jitter, at most 3 tries |
+| Timeout, network or 5xx error on a **write** request | **No automatic retry.** Whether the change happened is unknown, so tell the user to check the dashboard |
 
 ### 5.4 Safety (live environment)
-Eldorado te test environment nei. Tai:
-- Ekadhik offer e change hole prothome **1 ta offer** e chalabe (pilot). Pilot fail korle baki gulo te chalabe na. Pilot pass korle baki gulor jonno abar confirm chaibe. `--yes` dile confirm chaibe na, kintu pilot tokhono age chalabe.
-- `--dry-run` flag shob write command e thakbe.
-- Price **50% er beshi** bodlale (barle ba komle) command thamabe, jodi na `--allow-big-change` deya hoy.
-- Price `Decimal` hishebe rakha hobe, float na.
+Eldorado has no test environment. Therefore:
+- When changing several offers, run on **1 offer** first (pilot). If the pilot fails, the rest are not run. If the pilot passes, ask for confirmation again for the rest. With `--yes` no confirmation is asked, but the pilot still runs first.
+- Every write command has the `--dry-run` flag.
+- If a price changes by **more than 50%** (up or down), the command stops, unless `--allow-big-change` is given.
+- Prices are kept as `Decimal`, never float.
 
 ### 5.5 Credential
-- Credential er meyad API theke jana jay na. Tai `.env` e `ELDORADO_CREDENTIAL_EXPIRES=YYYY-MM-DD` (optional) rakha jabe. Meyad shesh hote 7 din ba tar kom baki thakle tool warning dekhabe.
-- Kaj na thamiye credential bodlate: dashboard e notun credential banan, `.env` update korun, tarpor puran ta revoke korun. (Ekta account e shorbochcho 2 ta active credential thakte pare.)
+- The API does not tell when a credential expires. So `.env` can hold `ELDORADO_CREDENTIAL_EXPIRES=YYYY-MM-DD` (optional). When 7 days or fewer are left, the tool shows a warning.
+- To rotate a credential without stopping work: create a new credential on the dashboard, update `.env`, then revoke the old one. (An account can have at most 2 active credentials.)
 
 ## 6. Technical Decisions (final)
 
-| Bishoy | Decision |
+| Topic | Decision |
 |---|---|
 | Language | Python 3.11+ |
-| CLI | `typer` (`rich` diye table ar color) |
-| HTTP client | `httpx`, **shudhu sync** (`httpx.Client`) |
-| Model ar validation | `pydantic` v2 |
-| Config | `pydantic-settings` (`.env` file pore) |
-| Audit log | `logs/audit.jsonl` (protita line e ekta JSON) |
-| Database | **MVP te lagbe na.** Phase 2 e dorkar hole SQLite |
-| Test | `pytest` + `respx` (shob HTTP mock, kono live call na) |
+| CLI | `typer` (tables and colors with `rich`) |
+| HTTP client | `httpx`, **sync only** (`httpx.Client`) |
+| Models and validation | `pydantic` v2 |
+| Config | `pydantic-settings` (reads the `.env` file) |
+| Audit log | `logs/audit.jsonl` (one JSON per line) |
+| Database | **Not needed in the MVP.** SQLite in Phase 2 if needed |
+| Tests | `pytest` + `respx` (every HTTP call mocked, no live calls) |
 
 ### 6.1 Folder structure (final)
 ```
 eldorado_Seller_Api/
+├── AGENTS.md                   # Rules for AI agents and developers
+├── README.md                   # User guide (English)
+├── prd.md                      # Product requirements, source of truth
+├── ELDORADO_SELLER_API.md      # Notes from the official article
+├── api-spec.md                 # API spec (confirmed / assumed / unknown)
+├── architecture.md             # Architecture
+├── database.md                 # Local data and audit log format
+├── requirement-validation.md   # Traceability and test plan
+├── pyproject.toml
 ├── .env.example
 ├── .gitignore
-├── pyproject.toml
-├── logs/                  # audit.jsonl (gitignore e)
+├── bidding.example.toml        # template; bidding.toml (ignored) holds Min/Max/ON per offer
+├── runme.ps1                   # one-click setup + start (Windows)
+├── logs/                       # audit.jsonl, bot.lock (ignored by git)
 ├── src/eldorado/
 │   ├── __init__.py
-│   ├── cli/               # Typer command
+│   ├── __main__.py             # `python -m eldorado`
+│   ├── cli/                    # Typer commands
 │   │   ├── main.py
 │   │   ├── offers.py
 │   │   ├── orders.py
-│   │   └── account.py
-│   ├── services/          # business logic: diff, pilot, safety check
+│   │   ├── account.py          # status online/offline
+│   │   ├── bid.py              # bid run
+│   │   ├── ui.py               # ui and app (local page server)
+│   │   ├── ui_page.py          # the page HTML/JS
+│   │   └── shared.py
+│   ├── services/               # Business rules: diff, pilot, 50% guard, audit
+│   │   ├── offers.py
+│   │   ├── orders.py
+│   │   ├── account.py
+│   │   ├── bidding.py          # decide() + Bidder (F16)
+│   │   ├── bot_runner.py       # bot thread for `eldorado app`
+│   │   ├── order_watch.py      # new-order alert (F18), read-only
+│   │   └── dashboard.py        # page data, save, preview
+│   ├── client/                 # HTTP only
+│   │   ├── auth.py             # Token manager
+│   │   ├── base.py             # Base client, retry rules, error mapping
 │   │   ├── offers.py
 │   │   ├── orders.py
 │   │   └── account.py
-│   ├── client/            # HTTP
-│   │   ├── auth.py        # token manager (F1)
-│   │   ├── base.py        # base client, retry, error mapping
-│   │   ├── offers.py
-│   │   ├── orders.py
-│   │   └── account.py
-│   ├── models/            # Pydantic model
+│   ├── models/                 # Pydantic models
 │   │   ├── auth.py
 │   │   ├── offer.py
 │   │   └── order.py
 │   └── core/
 │       ├── config.py
 │       ├── exceptions.py
-│       ├── logging.py     # secret mask kora
-│       └── audit.py       # audit.jsonl likha
+│       ├── logging.py          # Secret masking
+│       ├── audit.py            # audit.jsonl writer
+│       ├── bidding_config.py   # bidding.toml load/save
+│       └── instance_lock.py    # one live bot at a time
 └── tests/
     ├── conftest.py
+    ├── factories.py            # Swagger-shaped JSON for mocked responses
     ├── test_auth.py
     ├── test_offers.py
     ├── test_orders.py
@@ -163,28 +185,34 @@ eldorado_Seller_Api/
     ├── test_dry_run.py
     ├── test_audit.py
     ├── test_resilience.py
-    └── test_security.py
+    ├── test_safety_regressions.py  # regression tests from the 2026-11-14 audit
+    ├── test_security.py
+    ├── test_bidding.py
+    ├── test_bot_runner.py
+    ├── test_order_watch.py
+    ├── test_ui.py
+    └── test_audit_fixes.py
 ```
 
-### 6.2 CLI command (final)
+### 6.2 CLI commands (final)
 
-Shob write command e `--dry-run` ar `--yes` ache. Shudhu TopUp offer.
+Every write command has `--dry-run` and `--yes`. TopUp offers only.
 
-| Command | Option | Feature | Obostha |
+| Command | Options | Feature | Status |
 |---|---|---|---|
-| `eldorado auth check` | | F1 (token niye credential check, kichu bodlay na) | ✅ |
+| `eldorado auth check` | | F1 (checks the credential by getting a token, changes nothing) | ✅ |
 | `eldorado offers list` | `--game GAMEID`, `--status active/paused/closed/offline`, `--limit N` | F2 | ✅ |
-| `eldorado offers update` | `--id ID`, `--price X`, `--allow-big-change` | F3 (ekta offer er price) | ✅ |
-| `eldorado offers pause/resume <offer_id>...` | | F4 (onek id hole prothom ta pilot) | ✅ |
+| `eldorado offers update` | `--id ID`, `--price X`, `--allow-big-change` | F3 (one offer's price) | ✅ |
+| `eldorado offers pause/resume <offer_id>...` | | F4 (with several ids, the first is the pilot) | ✅ |
 | `eldorado status online` / `offline` | | F7 | ✅ |
 | `eldorado bid run` | `--once`, `--interval SECONDS`, `--config PATH` | F16 | ✅ |
-| `eldorado ui` | `--port` (default 8765), `--no-browser` | F17 (shudhu settings page) | ✅ |
-| `eldorado app` | `--port`, `--no-browser` | F17 (page + bot ek window e, **PAUSED** e shuru, page theke RUN) | ✅ |
-| `eldorado orders deliver <order_id>` | | F6 | dry-run ✅, live bondho |
-| `eldorado offers update --game`, `--quantity`, `--delivery-time` | | F3 bulk | ❌ banano hoy ni (dorkar hoy ni) |
-| `eldorado orders list` | | F5 | ❌ banano hoy ni |
+| `eldorado ui` | `--port` (default 8765), `--no-browser` | F17 (settings page only) | ✅ |
+| `eldorado app` | `--port`, `--no-browser` | F17 (page + bot in one window, starts **PAUSED**, RUN from the page) | ✅ |
+| `eldorado orders deliver <order_id>` | | F6 | dry-run ✅, live disabled |
+| `eldorado offers update --game`, `--quantity`, `--delivery-time` | | F3 bulk | ❌ not built (not needed) |
+| `eldorado orders list` | | F5 | ❌ not built |
 
-Ekটা live bot (`app` ba `bid run`) ek shomoy e chalte pare. `logs/bot.lock` dwitiyo bot ke atkay.
+Only one live bot (`app` or `bid run`) can run at a time. `logs/bot.lock` blocks a second bot.
 
 **Example:**
 ```
@@ -196,58 +224,58 @@ eldorado app
 
 ## 7. Milestones
 
-| Phase | Kaj | Shorto |
+| Phase | Work | Condition |
 |---|---|---|
-| M0 | Official endpoint docs collect kora | Dashboard ba support theke API reference pawa |
-| M1 | Project setup (`pyproject.toml`, `.env.example`, `.gitignore`) + F1 (Auth) | Client ID ar secret pawa |
-| M2 | F2 - F8, F15 (MVP) | M0 shesh |
-| M3 | Ekta asol offer e pilot test (same price diye no-op update) | M2 shesh |
-| M4 | Phase 2 feature | M3 shesh |
+| M0 | Collect the official endpoint docs | Get the API reference from the dashboard or support |
+| M1 | Project setup (`pyproject.toml`, `.env.example`, `.gitignore`) + F1 (Auth) | Client ID and secret in hand |
+| M2 | F2 - F8, F15 (MVP) | M0 done |
+| M3 | Pilot test on one real offer (no-op update with the same price) | M2 done |
+| M4 | Phase 2 features | M3 done |
 
 ## 8. Risks
 
-| Risk | Probhab | Ki korbo |
+| Risk | Impact | Mitigation |
 |---|---|---|
-| Test environment nei, bhul request live offer bodle dite pare | High | Dry-run, confirm, pilot, 50% price guard |
-| Endpoint docs pawa jachhe na | High | M0 te dashboard dekha, na pele support ke email |
-| Write request timeout hole duibar change hoye jawa | Medium | Write request automatic retry hobe na |
-| Secret ba token leak | Medium | `.env` + `.gitignore`, token shudhu memory te, log e mask |
-| Credential er meyad shesh hoye tool bondho hoye jawa | Medium | `ELDORADO_CREDENTIAL_EXPIRES` diye age theke warning |
-| Rate limit jana nei | Medium | Retry + backoff, bulk request er majhe delay |
+| No test environment; a wrong request can change live offers | High | Dry run, confirmation, pilot, 50% price guard |
+| Endpoint docs not available | High | Check the dashboard in M0; if not found, email support |
+| A write request times out and the change happens twice | Medium | Write requests are never retried automatically |
+| Secret or token leak | Medium | `.env` + `.gitignore`, token in memory only, masked in logs |
+| Credential expires and the tool stops working | Medium | Early warning via `ELDORADO_CREDENTIAL_EXPIRES` |
+| Rate limit unknown | Medium | Retry + backoff, delay between bulk requests |
 
 ## 9. Open Questions
 
-1. ~~Offer, order ar account endpoint er **base URL ar endpoint list** ki?~~ **Uttor (Swagger, 2026-11-14):** `https://www.eldorado.gg/swagger/seller/index.html`. Pura list `api-spec.md` section 4 e. Offer type onujayi alada API (Currency, Item, Account, Predefined, Boosting, Swap).
-2. ~~Token request er body format ki?~~ **Uttor (dashboard):** JSON `{"clientId", "clientSecret"}`, response `{"accessToken", "expiresIn": 900, "tokenType": "Bearer"}`.
-3. ~~`Authorization` header er format ki `Bearer <token>`?~~ **Uttor (dashboard):** Ha, `Authorization: Bearer <access_token>`.
-3a. ~~`PUT /api/orders/me/{orderId}/delivered` er request body te ki dite hoy?~~ **Uttor (Swagger):** Swagger e ei path nei. Shothik path `PUT /api/v1/orders/me/{orderId}/deliver`, kono body nei.
-4. **Rate limit** koto, ar error status code gulo ki ki?
-5. ~~Bulk update er jonno alada endpoint ache?~~ **Uttor (Swagger):** Ha. Protita offer type e game diye bulk price, delivery time, pause ar resume ache.
-6. Team account member ra ki API use korte pare?
-7. **Kon offer type** (Currency, Item, Account, TopUp/GiftCard) ar kon game niye kaj korben? Ei uttor e thik hobe MVP te kon API lagbe. Kon feature ta shobcheye agey dorkar?
-8. Tool ta ki shudhu CLI hobe, naki pore web dashboard o lagbe?
-9. ~~Auto pricing lagbe ki?~~ **Uttor:** Ha, F16. Competitor price `GET /api/predefinedOffers/game` theke (Swagger e public endpoint).
-10. ~~Swagger er `swagger` header pathate hoy kina?~~ **Uttor (live):** na, header chara shob call kaj kore.
+1. ~~What are the **base URL and endpoint list** for offers, orders and account?~~ **Answer (Swagger, 2026-11-14):** `https://www.eldorado.gg/swagger/seller/index.html`. The full list is in `api-spec.md` section 4. Each offer type has its own API (Currency, Item, Account, Predefined, Boosting, Swap).
+2. ~~What is the token request body format?~~ **Answer (dashboard):** JSON `{"clientId", "clientSecret"}`, response `{"accessToken", "expiresIn": 900, "tokenType": "Bearer"}`.
+3. ~~Is the `Authorization` header format `Bearer <token>`?~~ **Answer (dashboard):** Yes, `Authorization: Bearer <access_token>`.
+3a. ~~What goes in the request body of `PUT /api/orders/me/{orderId}/delivered`?~~ **Answer (Swagger):** This path is not in Swagger. The correct path is `PUT /api/v1/orders/me/{orderId}/deliver`, with no body.
+4. What is the **rate limit**, and what are the error status codes?
+5. ~~Is there a separate endpoint for bulk updates?~~ **Answer (Swagger):** Yes. Every offer type has bulk price, delivery time, pause and resume by game.
+6. Can team account members use the API?
+7. **Which offer types** (Currency, Item, Account, TopUp/GiftCard) and which games will you work with? This decides which APIs the MVP needs. Which feature is needed first?
+8. Will the tool be CLI only, or is a web dashboard needed later too?
+9. ~~Is auto pricing needed?~~ **Answer:** Yes, F16. Competitor prices come from `GET /api/predefinedOffers/game` (a public endpoint in Swagger).
+10. ~~Must Swagger's `swagger` header be sent?~~ **Answer (live):** No, every call works without the header.
 
-### 9.1 Auto bidding er niyom (F16, final)
+### 9.1 Auto bidding rules (F16, final)
 
-| Niyom | Value |
+| Rule | Value |
 |---|---|
-| Undercut | Fixed `0.01` (`bidding.toml` e bodlano jay) |
-| Target price | `min(onno seller der Active price) - 0.01`, 2 decimal e round down |
-| Floor | Protita offer e `min_price` lagbe. Target floor er niche gele price = floor |
-| Ceiling | Optional `max_price`. Target er cheye beshi hole price = ceiling |
-| Competitor nei | Price bodlabe na |
-| Min e atke chilen, tarpor #1 | Kom dami seller (min er niche) chole geche. `max_price` thakle bot ek cycle er jonno `max_price` e jay. Porer cycle e market e asol porer seller dekha jay, tar cheye 0.01 kom e name (jemon 4.50 -> 4.49). `max_price` na thakle min e thake |
-| Already #1 | Price bodlabe na. Market endpoint protita package er **shudhu ekta offer** (shobcheye kom ta) dey, tai apni #1 hole 2nd price jana jay na. User "price barabe" chechilen, kintu API te ta shombhob na (live, 2026-11-14) |
-| Package match | `attributes[].id` + `attributes[].value.id`, jemon `call-of-duty-mobile-cp=80-cp`. Package na jana gele offer skip |
-| Game | Game diye kono filter nei. Naam: `GAME_NAMES` (59 CODM, 56 Brawl Stars, 18 Clash of Clans, 52 Clash Royale, 70 Roblox, 21 PUBG Mobile, 254 TikTok, 46 Free Fire, 378 Yalla Ludo, 385 ChatGPT); ojana game hole offer er seo alias theke naam |
-| Region | Package match e trade environment (jemon Free Fire er Region) o mile hobe |
-| Nijer offer | Competitor hishebe dhora hobe na |
-| Currency | Shudhu USD offer. Onno currency hole skip |
-| 50% guard | Ek bar e 50% er beshi change hole skip, jodi na offer e `allow_big_change = true` thake |
-| Pilot | Protita cycle er prothom change ta pilot. Pilot fail korle oi cycle er baki change hobe na |
-| Write outcome unknown | Pura bot thame (timeout ba 5xx er por kono retry na) |
-| Audit log likha jay na | Unknown outcome er moto: `eldorado app` nijei paused hoy, `bid run` thame. Audit record chara bot cholte thakbe na, tai unknown write abar pathano hoy na |
-| Cycle er majhe Pause | Protita live write er age `paused` abar pora hoy. Pause hole cycle er baki write pathano hoy na (`not_sent`) |
-| Confirm | Start er shomoy ekbar confirm, `--yes` dile na |
+| Undercut | Fixed `0.01` (can be changed in `bidding.toml`) |
+| Target price | `min(other sellers' Active prices) - 0.01`, rounded down to 2 decimals |
+| Floor | Every offer needs a `min_price`. If the target is below the floor, price = floor |
+| Ceiling | Optional `max_price`. If the target is above it, price = ceiling |
+| No competitor | Price is not changed |
+| Held at Min, then #1 | The cheaper seller (below Min) has left. With `max_price`, the bot goes to `max_price` for one cycle. The next cycle sees the real next seller on the market and goes 0.01 below it (e.g. 4.50 -> 4.49). Without `max_price` it stays at Min |
+| Already #1 | Price is not changed. The market endpoint returns **only one offer** per package (the cheapest), so when you are #1 the 2nd price is not visible. The user wanted "raise the price", but the API makes that impossible (live, 2026-11-14) |
+| Package match | `attributes[].id` + `attributes[].value.id`, e.g. `call-of-duty-mobile-cp=80-cp`. Offers with an unknown package are skipped |
+| Game | No filter by game. Names: `GAME_NAMES` (59 CODM, 56 Brawl Stars, 18 Clash of Clans, 52 Clash Royale, 70 Roblox, 21 PUBG Mobile, 254 TikTok, 46 Free Fire, 378 Yalla Ludo, 385 ChatGPT); for an unknown game the name comes from the offer's SEO alias |
+| Region | The package match also requires the same trade environment (e.g. Free Fire's Region) |
+| Own offers | Not counted as competitors |
+| Currency | USD offers only. Other currencies are skipped |
+| 50% guard | A change of more than 50% at once is skipped, unless the offer has `allow_big_change = true` |
+| Pilot | The first change of every cycle is the pilot. If the pilot fails, the rest of that cycle's changes are not made |
+| Write outcome unknown | The whole bot stops (no retry after a timeout or 5xx) |
+| Audit log cannot be written | Same as an unknown outcome: `eldorado app` pauses itself, `bid run` stops. The bot never keeps running without an audit record, so an unknown write is never sent again |
+| Pause mid-cycle | `paused` is re-read before every live write. Once paused, the rest of the cycle's writes are not sent (`not_sent`) |
+| Confirm | Confirm once at start, not with `--yes` |
