@@ -97,6 +97,8 @@ def make_handler(
                 self._json(HTTPStatus.BAD_REQUEST, {"error": redact(str(exc))})
             except EldoradoError as exc:
                 self._json(HTTPStatus.BAD_GATEWAY, {"error": redact(str(exc))})
+            except ConnectionError:
+                raise  # the browser closed the connection: nobody to answer (LocalServer stays quiet)
             except Exception as exc:  # noqa: BLE001 - answer with JSON, never drop the connection
                 self._json(HTTPStatus.INTERNAL_SERVER_ERROR,
                            {"error": f"internal error ({type(exc).__name__})"})
@@ -162,6 +164,12 @@ class LocalServer(ThreadingHTTPServer):
     # On Windows SO_REUSEADDR lets a second server bind the same port silently; fail instead.
     allow_reuse_address = False
     daemon_threads = True
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        # A closed or refreshed tab aborts its request; that is normal, not worth a traceback.
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)
 
 
 def _now() -> str:

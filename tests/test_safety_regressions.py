@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import http.client
+import http.server
 import json
 import threading
 import time
@@ -243,3 +244,21 @@ def test_one_odd_order_does_not_hide_the_others(api: respx.MockRouter, token_rou
     api.get(SELLER_ORDERS_PATH).mock(return_value=httpx.Response(200, json=cursor_page(
         odd, {"no": "id"}, "text", order_json("good"))))
     assert [o.id for o in list_seller_orders(base)] == ["good"]
+
+
+def test_closed_browser_connection_prints_no_traceback(capsys: pytest.CaptureFixture[str]) -> None:
+    srv = LocalServer(("127.0.0.1", 0), http.server.BaseHTTPRequestHandler)
+    try:
+        for exc in (ConnectionAbortedError(10053, "aborted"), ConnectionResetError()):
+            try:
+                raise exc
+            except ConnectionError:
+                srv.handle_error(None, ("127.0.0.1", 1))
+        assert capsys.readouterr().err == ""
+        try:
+            raise ValueError("real bug")
+        except ValueError:
+            srv.handle_error(None, ("127.0.0.1", 1))
+        assert "real bug" in capsys.readouterr().err   # real errors still show
+    finally:
+        srv.server_close()

@@ -96,6 +96,22 @@ foreach ($key in 'ELDORADO_CLIENT_ID', 'ELDORADO_CLIENT_SECRET') {
 }
 
 # --- 4. Start ---------------------------------------------------------------
+# Already running (another window)? Open its page instead of failing on the bot lock.
+$appPort = if ($Port -gt 0) { $Port } else { 8765 }
+$listener = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $appPort -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if ($listener) {
+    # The venv launcher hands off to the base python.exe, so match the command line, not the exe path.
+    $owner = Get-CimInstance Win32_Process -Filter "ProcessId = $($listener.OwningProcess)" -ErrorAction SilentlyContinue
+    if ($owner -and $owner.CommandLine -like "*$PSScriptRoot*eldorado*") {
+        Write-Host "The app is already running (another window). Opening its page: http://127.0.0.1:$appPort/" -ForegroundColor Yellow
+        Write-Host 'To restart it, close that window first, then run this script again.' -ForegroundColor Yellow
+        if (-not $NoBrowser) { Start-Process "http://127.0.0.1:$appPort/" }
+        exit 0
+    }
+    Stop-WithError "Port $appPort is used by another program. Run again with -Port 9000 (or another free port)."
+}
+
 $cliArgs = @($Mode)
 if ($Port -gt 0) { $cliArgs += @('--port', "$Port") }
 if ($NoBrowser) { $cliArgs += '--no-browser' }
