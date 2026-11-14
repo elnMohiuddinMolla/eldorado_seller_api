@@ -73,6 +73,8 @@ tr.late td { color: var(--bad); }
   <button id="botSwitch" title="Global switch for the running bot">Bot: ...</button>
   <span id="botStatus" class="note"></span>
   <span class="spacer"></span>
+  <span class="note">Check every <input type="text" inputmode="numeric" id="interval" class="price"
+    style="width:48px" title="Minutes between bot checks (1 to 1440)"> min</span>
   <span class="note">Undercut <input type="text" id="undercut" class="price" style="width:60px"></span>
   <button id="reload">Reload</button>
   <button id="preview">Preview</button>
@@ -210,6 +212,11 @@ $("rows").addEventListener("input", (ev) => {
   });
 });
 $("undercut").addEventListener("input", () => setDirty(true));
+$("interval").addEventListener("input", () => {
+  setDirty(true);
+  const m = Number($("interval").value);
+  $("interval").classList.toggle("bad", !(Number.isInteger(m) && m >= 1 && m <= 1440));
+});
 $("game").addEventListener("change", render);
 $("onlyOn").addEventListener("change", render);
 
@@ -219,6 +226,8 @@ async function load(fresh) {
   try {
     data = await call("GET", "/api/offers" + (fresh ? "?fresh=1" : ""));
     $("undercut").value = data.undercut;
+    $("interval").value = Math.round(data.interval_seconds / 60);
+    $("interval").classList.remove("bad");
     showBot(); refreshStatus();
     const games = [...new Set(data.rows.map((r) => r.game))];
     const sel = $("game"), keep = sel.value;
@@ -232,14 +241,21 @@ async function load(fresh) {
 }
 
 async function save() {
+  const minutes = Number($("interval").value);
+  if (!(Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440)) {
+    msg("bad", "Check every: write whole minutes from 1 to 1440."); return;
+  }
   const bad = data.rows.filter((r) => Object.keys(validate(r)).length);
   if (bad.length) { msg("bad", "Fix the red boxes first (" + bad.length + " offer(s))."); return; }
   $("save").disabled = true;
   try {
-    const res = await call("POST", "/api/config", { undercut: $("undercut").value.trim(), rows: data.rows });
+    const res = await call("POST", "/api/config", { undercut: $("undercut").value.trim(),
+                                                    interval_seconds: minutes * 60, rows: data.rows });
+    data.interval_seconds = minutes * 60;
     data.rows.forEach((r) => delete r._dirty);
     setDirty(false); render();
-    msg("ok", "Saved. " + res.enabled + " offer(s) ON. A running bot uses the new values from its next cycle.");
+    msg("ok", "Saved. " + res.enabled + " offer(s) ON, bot checks every " + minutes +
+        " min. A running bot uses the new values right away.");
   } catch (e) { setDirty(true); msg("bad", "Not saved: " + e.message); }
 }
 

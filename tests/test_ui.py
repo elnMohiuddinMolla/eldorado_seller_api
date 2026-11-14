@@ -175,3 +175,16 @@ def test_offers_are_cached_until_reload(server: str, api: respx.MockRouter) -> N
     assert mine.call_count == before and again["rows"] == first["rows"]
     req(server + "/api/offers?fresh=1")                    # Reload button: live
     assert mine.call_count == before + 1
+
+
+def test_save_changes_check_interval(server: str, cfg: Path) -> None:
+    assert req(server + "/api/config", "POST", {"interval_seconds": 120, "rows": []})[0] == 200
+    assert tomllib.loads(cfg.read_text(encoding="utf-8"))["interval_seconds"] == 120
+    assert req(server + "/api/offers")[1]["interval_seconds"] == 120
+
+
+def test_interval_below_one_minute_is_refused(server: str, cfg: Path) -> None:
+    before = cfg.read_text(encoding="utf-8")
+    status, body = req(server + "/api/config", "POST", {"interval_seconds": 30, "rows": []})
+    assert status == 400 and "interval_seconds" in body["error"]
+    assert cfg.read_text(encoding="utf-8") == before

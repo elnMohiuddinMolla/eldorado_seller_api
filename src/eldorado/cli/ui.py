@@ -39,7 +39,6 @@ from eldorado.models.order import SellerOrder
 
 MAX_BODY_BYTES = 1_000_000
 DEFAULT_PORT = 8765
-CYCLE_HINT_SECONDS = 300
 
 
 def make_handler(
@@ -173,14 +172,14 @@ def _announce_state(state: str, message: str) -> None:
     console.print(f"{_now()} {text}")
 
 
-def _report_cycle(report: CycleReport) -> None:
+def _report_cycle(report: CycleReport, interval_seconds: int) -> None:
     """Full table only when something was sent or failed; otherwise one short line."""
     changes = report.changes()
     if changes:
         _print_report(report)
         return
     skipped = sum(1 for d in report.decisions if d.kind == "skip")
-    nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + CYCLE_HINT_SECONDS))
+    nxt = time.strftime("%H:%M:%S", time.localtime(time.time() + interval_seconds))
     console.print(f"{_now()} checked {len(report.decisions)} offer(s): 0 changed"
                   + (f", {skipped} skipped" if skipped else "")
                   + f". Next check about {nxt}.")

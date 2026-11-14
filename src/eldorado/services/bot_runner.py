@@ -55,7 +55,7 @@ class BotRunner:
         audit: AuditLogger,
         config_path: Path,
         *,
-        on_report: Callable[[CycleReport], None] = lambda r: None,
+        on_report: Callable[[CycleReport, int], None] = lambda r, interval: None,
         log: Callable[[str], None] = lambda m: None,
         on_state: Callable[[str, str], None] = lambda state, message: None,
         clock: Callable[[], float] = time.time,
@@ -136,7 +136,7 @@ class BotRunner:
         note = f"{len(config.enabled_rules())} offer(s) ON, {changed} price(s) changed"
         self._set(state="running", last_cycle=stamp, last_changes=changed,
                   message=note + (f", {failed} failed" if failed else "") + ".")
-        self._on_report(report)
+        self._on_report(report, config.interval_seconds)
         return config
 
     def _fail_safe(self, exc: BaseException) -> BiddingConfig:
