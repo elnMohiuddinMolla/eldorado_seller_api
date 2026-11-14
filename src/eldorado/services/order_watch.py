@@ -15,14 +15,13 @@ from typing import Any
 
 from eldorado.client.base import BaseClient
 from eldorado.client.orders import list_seller_orders
-from eldorado.core.bidding_config import TOPUP_GAMES
+from eldorado.core.bidding_config import GAME_NAMES
 from eldorado.core.exceptions import EldoradoError
 from eldorado.core.logging import redact
 from eldorado.models.order import SellerOrder
 
 POLL_SECONDS = 60
 MAX_ALERTS = 50
-GAME_NAMES = {**TOPUP_GAMES, "254": "TikTok"}
 
 
 def age_minutes(created: str, now: datetime | None = None) -> int | None:

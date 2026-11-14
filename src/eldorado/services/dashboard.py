@@ -10,16 +10,16 @@ from eldorado.client.offers import OffersClient
 from eldorado.core.audit import AuditLogger
 from eldorado.core.bidding_config import (
     CONFIG_WRITE_LOCK,
-    TOPUP_GAMES,
+    game_name,
     BiddingConfig,
     OfferRule,
     load_bidding_config,
     parse_bidding_config,
     save_bidding_config,
 )
-from eldorado.core.exceptions import ConfigError
+from eldorado.core.exceptions import ConfigError, EldoradoError
 from eldorado.models.offer import Offer
-from eldorado.services.bidding import Bidder
+from eldorado.services.bidding import Bidder, fetch_market
 from eldorado.services.offers import OfferService
 
 
@@ -38,20 +38,25 @@ class Dashboard:
     def rows(self) -> dict[str, Any]:
         config = self.config()
         rules = {r.id: r for r in config.offers}
+        # Every TopUp offer on the account, any game: new uploads appear, deleted ones vanish.
         offers = [o for o in OfferService(self._client, AuditLogger()).list_mine()
-                  if o.game_id in TOPUP_GAMES and o.state in ("Active", "Paused")]
+                  if o.state in ("Active", "Paused")]
         market: dict[str, list[Offer]] = {
-            g: [it.offer for it in self._client.list_game(game_id=g).results]
+            g: fetch_market(self._client, g)
             for g in sorted({o.game_id for o in offers if o.game_id})
         }
+
+        def name(o: Offer) -> str:
+            return game_name(o.game_id, o.seo_alias, o.title)
+
         rows = []
-        for o in sorted(offers, key=lambda o: (TOPUP_GAMES[o.game_id or ""], o.price.amount)):
+        for o in sorted(offers, key=lambda o: (name(o), o.price.amount)):
             low = next((m for m in market.get(o.game_id or "", [])
                         if m.product_key() == o.product_key()), None)
             rule = rules.get(o.id)
             rows.append({
                 "id": o.id,
-                "game": TOPUP_GAMES[o.game_id or ""],
+                "game": name(o),
                 "package": o.package_name() or "?",
                 "state": o.state,
                 "price": _s(o.price.amount),
@@ -95,6 +100,14 @@ class Dashboard:
             raise ConfigError("; ".join(errors))
         shown = {str(r.get("id")) for r in payload.get("rows") or []}
         kept = [r for r in current.offers if r.id not in shown]
+        if payload.get("rows"):
+            # Drop settings of offers that no longer exist on Eldorado (deleted by the seller).
+            try:
+                existing = {o.id for o in OfferService(self._client, AuditLogger()).list_mine()}
+            except EldoradoError:
+                existing = None  # cannot check now: keep everything
+            if existing is not None:
+                kept = [r for r in kept if r.id in existing]
         config = parse_bidding_config({
             "undercut": payload.get("undercut", str(current.undercut)),
             "interval_seconds": payload.get("interval_seconds", current.interval_seconds),

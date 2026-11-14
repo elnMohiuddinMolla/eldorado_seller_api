@@ -149,6 +149,17 @@ def decide(
     return base
 
 
+def fetch_market(client: OffersClient, game_id: str) -> list[Offer]:
+    """Every page of the public market for one game (one offer per package and region)."""
+    offers: list[Offer] = []
+    for index in range(FIRST_PAGE, FIRST_PAGE + MAX_PAGES):
+        page = client.list_game(game_id=game_id, page_index=index, page_size=PAGE_SIZE)
+        offers.extend(item.offer for item in page.results)
+        if not page.results or index >= page.total_pages:
+            break
+    return offers
+
+
 class Bidder:
     def __init__(
         self,
@@ -191,13 +202,7 @@ class Bidder:
         return found
 
     def _game_offers(self, game_id: str) -> list[Offer]:
-        offers: list[Offer] = []
-        for index in range(FIRST_PAGE, FIRST_PAGE + MAX_PAGES):
-            page = self._client.list_game(game_id=game_id, page_index=index, page_size=PAGE_SIZE)
-            offers.extend(item.offer for item in page.results)
-            if not page.results or index >= page.total_pages:
-                break
-        return offers
+        return fetch_market(self._client, game_id)
 
     def plan(self) -> CycleReport:
         """Reads only. Decides what each configured offer's price should be."""

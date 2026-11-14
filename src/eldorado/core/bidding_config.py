@@ -17,14 +17,31 @@ DEFAULT_UNDERCUT = Decimal("0.01")
 DEFAULT_INTERVAL_SECONDS = 300
 MIN_INTERVAL_SECONDS = 60
 
-# The user's games (prd.md 9.1): Eldorado gameId -> name.
-TOPUP_GAMES: dict[str, str] = {
+# Display names for Eldorado gameIds (only for nicer labels). Any game works without an entry:
+# the name then comes from the offer's own seo alias. The bot itself never filters by game.
+GAME_NAMES: dict[str, str] = {
     "59": "Call of Duty Mobile",
     "56": "Brawl Stars",
     "18": "Clash of Clans",
     "52": "Clash Royale",
     "70": "Roblox",
+    "21": "PUBG Mobile",
+    "254": "TikTok",
+    "46": "Free Fire",
+    "378": "Yalla Ludo",
+    "385": "ChatGPT",
 }
+TOPUP_GAMES = GAME_NAMES  # old name, kept for compatibility
+_ACRONYMS = {"uc", "cp", "pubg", "codm", "fc", "gta", "pc", "ea", "nba", "ff", "mlbb", "vp", "rp"}
+
+
+def game_name(game_id: str | None, seo_alias: str | None = None, title: str | None = None) -> str:
+    if game_id and game_id in GAME_NAMES:
+        return GAME_NAMES[game_id]
+    if seo_alias:
+        words = [w for w in seo_alias.split("-") if w not in {"top", "up", "topup", "cheap", "purchase"}]
+        return " ".join(w.upper() if w in _ACRONYMS else w.capitalize() for w in words) or seo_alias
+    return title or (f"Game {game_id}" if game_id else "Unknown game")
 
 
 def _decimal(value: Any) -> Any:

@@ -32,7 +32,7 @@ Eldorado Seller API use kore ekta tool banano jeta seller er bar bar kora kaj gu
 
 ### 4.0 Focus (2026-11-14)
 
-User shudhu **TopUp offer** niye kaj korbe. Game: **Call of Duty Mobile, Brawl Stars, Clash of Clans, Clash Royale, Roblox**. Mul kaj holo **auto bidding (F16)**. Baki feature banano thakbe, kintu agrader na.
+User shudhu **TopUp offer** niye kaj korbe, **je kono game er**. Account e notun TopUp offer upload korle page e nijei ashe, delete korle chole jay, ar Save e tar settings o muche jay. Ekhon: CODM, Brawl Stars, Clash of Clans, Clash Royale, Roblox, PUBG Mobile, TikTok, Free Fire, Yalla Ludo, ChatGPT. Mul kaj holo **auto bidding (F16)**. Baki feature banano thakbe, kintu agrader na.
 
 TopUp offer Swagger er **Predefined offer** API te pore (`/api/predefinedOffers/...`). **(Assumption:** prothom read-only call e confirm korte hobe.)
 
@@ -241,7 +241,8 @@ eldorado app
 | Min e atke chilen, tarpor #1 | Kom dami seller (min er niche) chole geche. `max_price` thakle bot ek cycle er jonno `max_price` e jay. Porer cycle e market e asol porer seller dekha jay, tar cheye 0.01 kom e name (jemon 4.50 -> 4.49). `max_price` na thakle min e thake |
 | Already #1 | Price bodlabe na. Market endpoint protita package er **shudhu ekta offer** (shobcheye kom ta) dey, tai apni #1 hole 2nd price jana jay na. User "price barabe" chechilen, kintu API te ta shombhob na (live, 2026-11-14) |
 | Package match | `attributes[].id` + `attributes[].value.id`, jemon `call-of-duty-mobile-cp=80-cp`. Package na jana gele offer skip |
-| Game id | CODM = 59, Brawl Stars = 56, Clash of Clans = 18, Clash Royale = 52, Roblox = 70 |
+| Game | Game diye kono filter nei. Naam: `GAME_NAMES` (59 CODM, 56 Brawl Stars, 18 Clash of Clans, 52 Clash Royale, 70 Roblox, 21 PUBG Mobile, 254 TikTok, 46 Free Fire, 378 Yalla Ludo, 385 ChatGPT); ojana game hole offer er seo alias theke naam |
+| Region | Package match e trade environment (jemon Free Fire er Region) o mile hobe |
 | Nijer offer | Competitor hishebe dhora hobe na |
 | Currency | Shudhu USD offer. Onno currency hole skip |
 | 50% guard | Ek bar e 50% er beshi change hole skip, jodi na offer e `allow_big_change = true` thake |

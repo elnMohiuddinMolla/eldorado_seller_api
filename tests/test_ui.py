@@ -92,11 +92,32 @@ def test_save_merges_and_writes_valid_toml(server: str, cfg: Path) -> None:
     rows = [{"id": "o1", "game": "CODM", "package": "80 CP", "min_price": "0.90",
              "max_price": "1.20", "enabled": True}]
     status, body = req(server + "/api/config", "POST", {"undercut": "0.01", "rows": rows})
-    assert status == 200 and body["enabled"] == 2
+    assert status == 200 and body["enabled"] == 1
     data = tomllib.loads(cfg.read_text(encoding="utf-8"))
     by_id = {o["id"]: o for o in data["offers"]}
-    assert by_id["other"]["min_price"] == "1"            # rule not on the page is kept
+    assert "other" not in by_id                          # offer deleted on Eldorado: rule removed
     assert by_id["o1"]["min_price"] == "0.90" and by_id["o1"]["max_price"] == "1.20"
+
+
+def test_save_keeps_rules_of_existing_offers_not_on_page(server: str, cfg: Path, api: respx.MockRouter) -> None:
+    """A Closed offer is not shown on the page but still exists: its rule is kept."""
+    api.get(MY_OFFERS_PATH).mock(return_value=httpx.Response(200, json=page([
+        offer_json("o1", 1.00, game_id="59"), offer_json("other", 2.00, game_id="59", state="Closed")])))
+    rows = [{"id": "o1", "min_price": "0.90", "enabled": True}]
+    assert req(server + "/api/config", "POST", {"rows": rows})[0] == 200
+    ids = [o["id"] for o in tomllib.loads(cfg.read_text(encoding="utf-8"))["offers"]]
+    assert sorted(ids) == ["o1", "other"]
+
+
+def test_page_shows_every_game_with_names(server: str, api: respx.MockRouter) -> None:
+    raw = offer_json("t1", 5.0, game_id="254", package="700 Coins")
+    raw["gameSeoAlias"] = "tiktok-coins"
+    unknown = offer_json("u1", 3.0, game_id="9999", package="Pack")
+    unknown["gameSeoAlias"] = "some-new-game-top-up"
+    api.get(MY_OFFERS_PATH).mock(return_value=httpx.Response(200, json=page([raw, unknown])))
+    api.get(GAME_OFFERS_PATH).mock(return_value=httpx.Response(200, json=market()))
+    games = sorted(r["game"] for r in req(server + "/api/offers")[1]["rows"])
+    assert games == ["Some New Game", "TikTok"]
 
 
 @pytest.mark.parametrize("row, fragment", [
