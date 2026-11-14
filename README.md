@@ -1,56 +1,56 @@
 # Eldorado Seller API Tool
 
-Eldorado.gg-এর অফিসিয়াল **Seller API** ব্যবহার করে বানানোর পরিকল্পনা করা একটি কমান্ড লাইন (CLI) টুল। এর লক্ষ্য হলো ভেরিফায়েড সেলারদের অফার (দাম, স্টক, ডেলিভারি সময়), অর্ডার (ডেলিভারড মার্ক করা) এবং অ্যাকাউন্ট স্ট্যাটাস (অনলাইন/অফলাইন) দ্রুত ও কম ভুলে ম্যানেজ করতে সাহায্য করা।
+A command line (CLI) tool built on the official Eldorado.gg **Seller API**. It helps verified sellers manage their offers (prices, pause/resume), orders and account status (online/offline) quickly and with fewer mistakes.
 
 > [!IMPORTANT]
-> **স্ট্যাটাস: ✅ চালু।** টুলটি শুধু **TopUp অফার** নিয়ে কাজ করে, **যেকোনো গেমের**। নতুন অফার আপলোড করলে পেজে নিজেই আসে, ডিলিট করলে চলে যায়। মূল কাজ **অটো বিডিং**: প্রতিটি অফারের দাম সবচেয়ে সস্তা অন্য সেলারের চেয়ে ০.০১ কম রাখা, কখনো আপনার Min-এর নিচে না।
-> সব সেটিং একটি লোকাল পেজ থেকে হয়: `eldorado app` চালান, তারপর **http://127.0.0.1:8765** খুলুন।
+> **Status: ✅ live.** The tool works with **TopUp offers** only, for **any game**. New offers you upload appear on the page by themselves, and deleted ones disappear. The main feature is **auto bidding**: keep each offer's price 0.01 below the cheapest other seller, never below your Min.
+> Everything is set from a local page: run `eldorado app`, then open **http://127.0.0.1:8765**.
 
 ---
 
-## ⚠️ গুরুত্বপূর্ণ সতর্কতা
+## ⚠️ Important Warning
 
 > [!CAUTION]
-> **Eldorado.gg-তে কোনো টেস্ট বা স্যান্ডবক্স এনভায়রনমেন্ট নেই।**
-> এই টুলের প্রতিটি রাইট (Write) কমান্ড সরাসরি আপনার **লাইভ অফার ও অর্ডার** পরিবর্তন করবে।
-> - যেকোনো পরিবর্তনের আগে `--dry-run` দিয়ে প্রিভিউ দেখুন।
-> - বাল্ক (Bulk) আপডেটের আগে ১টি অফারে পরীক্ষা করুন।
-> - আপনার `Client Secret` কাউকে শেয়ার করবেন না, স্ক্রিনশট নেবেন না, গিটে পুশ করবেন না।
+> **Eldorado.gg has no test or sandbox environment.**
+> Every write command in this tool changes your **live offers and orders** directly.
+> - Preview with `--dry-run` before any change.
+> - Try one offer before a bulk update.
+> - Never share your `Client Secret`, never screenshot it, never push it to git.
 
 ---
 
-## 📚 ডকুমেন্টেশন
+## 📚 Documentation
 
-| ফাইল | বিবরণ |
+| File | Description |
 |---|---|
-| [README.md](README.md) | প্রজেক্ট ওভারভিউ, সেটআপ ও ব্যবহারের নির্দেশিকা |
-| [ELDORADO_SELLER_API.md](ELDORADO_SELLER_API.md) | Eldorado-র অফিসিয়াল আর্টিকেলের নোট |
-| [api-spec.md](api-spec.md) | API স্পেসিফিকেশন: কোনটা কনফার্মড, কোনটা অনুমান আর কোনটা এখনো অজানা |
-| [prd.md](prd.md) | প্রডাক্ট রিকোয়ারমেন্ট ডকুমেন্ট (PRD): ফিচার, স্কোপ ও খোলা প্রশ্ন |
-| [architecture.md](architecture.md) | সিস্টেম আর্কিটেকচার ও সিকিউরিটি মডেল (প্রস্তাবিত) |
-| [database.md](database.md) | লোকাল ডাটাবেজ ডিজাইন (প্রস্তাবিত) |
-| [requirement-validation.md](requirement-validation.md) | রিকোয়ারমেন্ট ট্রেসেবিলিটি ও টেস্ট প্ল্যান |
-| [AGENTS.md](AGENTS.md) | AI কোডিং এজেন্ট ও ডেভেলপারদের নিয়ম |
+| [README.md](README.md) | Project overview, setup and usage guide |
+| [ELDORADO_SELLER_API.md](ELDORADO_SELLER_API.md) | Notes from Eldorado's official article |
+| [api-spec.md](api-spec.md) | API specification: what is confirmed, assumed or still unknown |
+| [prd.md](prd.md) | Product requirements document (PRD): features, scope and open questions |
+| [architecture.md](architecture.md) | System architecture and security model |
+| [database.md](database.md) | Local data and audit log format |
+| [requirement-validation.md](requirement-validation.md) | Requirement traceability and test plan |
+| [AGENTS.md](AGENTS.md) | Rules for AI coding agents and developers |
 
 ---
 
-## ✨ ফিচার
+## ✨ Features
 
-- [x] **টোকেন ম্যানেজার:** টোকেন ১৫ মিনিটে শেষ হয়, টুল নিজেই নতুন টোকেন নেয়।
-- [x] **অটো বিডিং:** সবচেয়ে কম দামের চেয়ে ০.০১ কম, Min-এর নিচে কখনো না। সস্তা সেলার চলে গেলে Max পর্যন্ত উঠে পরের সেলার খোঁজে।
-- [x] **সেটিংস পেজ:** প্রতিটি অফারের Min, Max, ON/OFF, আর পুরো বট চালু/পজ।
-- [x] **নতুন অর্ডার অ্যালার্ট:** প্রতি মিনিটে চেক। নতুন অর্ডার এলে পেজে ব্যানার, শব্দ আর ডেস্কটপ নোটিফিকেশন। ডেলিভারির অপেক্ষায় থাকা অর্ডারের তালিকা (১ ঘণ্টার বেশি হলে লাল)।
-- [x] **অফার লিস্ট, দাম পরিবর্তন, পজ / রিজ্যুম।**
-- [x] **অনলাইন/অফলাইন।**
-- [x] **ড্রাই-রান (`--dry-run`)** আর **অডিট লগ** (`logs/audit.jsonl`)।
-- [x] **নিরাপত্তা:** একসাথে একটাই বট চলে। টাইমআউট বা সার্ভার এররে বট নিজেই পজ হয়, আবার চেষ্টা করে না। `logs/audit.jsonl` লেখা না গেলেও বট নিজেই পজ হয়। চলমান cycle-এর মাঝে Pause চাপলে বাকি দাম পরিবর্তন আর পাঠানো হয় না।
-- [ ] অর্ডার লিস্ট, লাইভ ডেলিভার, নতুন অফার তৈরি, CSV আপলোড (এখনো বানানো হয়নি)।
+- [x] **Token manager:** tokens expire after 15 minutes; the tool gets a new one by itself.
+- [x] **Auto bidding:** 0.01 below the lowest price, never below Min. When a cheaper seller leaves, it goes up to Max to find the next seller.
+- [x] **Settings page:** Min, Max and ON/OFF for each offer, and run/pause for the whole bot.
+- [x] **New order alert:** checks every minute. A new order shows a banner on the page, plays a sound and sends a desktop notification. Lists orders waiting for delivery (red after 1 hour).
+- [x] **Offer list, price change, pause / resume.**
+- [x] **Online/offline.**
+- [x] **Dry run (`--dry-run`)** and **audit log** (`logs/audit.jsonl`).
+- [x] **Safety:** only one bot runs at a time. On a timeout or server error the bot pauses itself and never retries. It also pauses itself if `logs/audit.jsonl` cannot be written. Pressing Pause during a cycle stops the remaining price changes from being sent.
+- [ ] Order list command, live deliver, creating new offers, CSV upload (not built yet).
 
-Eldorado API যেগুলো সাপোর্ট করে না, এই টুলও সেগুলো পারবে না: উইথড্র, ব্যালেন্স, মেসেজ, ডিসপিউট, ফিডব্যাক, অফারের ছবি ও সেলস রিপোর্ট।
+What the Eldorado API does not support, this tool cannot do either: withdrawals, balance, messages, disputes, feedback, offer images and sales reports.
 
 ---
 
-## 🛠️ আর্কিটেকচার সংক্ষেপ
+## 🛠️ Architecture Overview
 
 ```mermaid
 graph LR
@@ -64,24 +64,24 @@ graph LR
 
 ---
 
-## 🚀 সেটআপ
+## 🚀 Setup
 
-### ১. যা লাগবে
-- **Python 3.11** বা তার পরের সংস্করণ
-- Eldorado **ভেরিফায়েড সেলার** অ্যাকাউন্ট (শুধু ভেরিফায়েড সেলাররা Seller API ব্যবহার করতে পারেন)
-- Seller API ক্রেডেনশিয়াল (Client ID ও Client Secret)
+### 1. Requirements
+- **Python 3.11** or newer
+- A **verified seller** account on Eldorado (only verified sellers can use the Seller API)
+- Seller API credentials (Client ID and Client Secret)
 
-### ২. ক্রেডেনশিয়াল নিন
-1. [Eldorado Seller API ড্যাশবোর্ডে](https://www.eldorado.gg/dashboard/seller-api) যান।
-2. "Generate API client credentials"-এ একটি নাম দিন এবং মেয়াদ বেছে নিন (১, ১৪, ৩০, ৯০ বা ৩৬৫ দিন)।
-3. **Generate credentials**-এ ক্লিক করুন।
-4. **Client ID** ও **Client Secret** কপি করে নিরাপদ জায়গায় রাখুন। সিক্রেট **শুধু একবার দেখায়**, পরে আর দেখা যায় না।
+### 2. Get credentials
+1. Go to the [Eldorado Seller API dashboard](https://www.eldorado.gg/dashboard/seller-api).
+2. Under "Generate API client credentials", enter a name and pick an expiry (1, 14, 30, 90 or 365 days).
+3. Click **Generate credentials**.
+4. Copy the **Client ID** and **Client Secret** somewhere safe. The secret is **shown only once** and cannot be viewed again.
 
-একটি অ্যাকাউন্টে সর্বোচ্চ ২টি অ্যাক্টিভ ক্রেডেনশিয়াল থাকতে পারে।
+An account can have at most 2 active credentials.
 
-### ৩. ইনস্টলেশন
+### 3. Installation
 ```powershell
-cd c:\Users\ASUS\Documents\eldorado_Seller_Api
+cd <project folder>
 
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -91,40 +91,40 @@ pip install -e ".[dev]"
 copy .env.example .env
 ```
 
-**সহজ উপায়:** উপরের সব ধাপ একবারে করতে প্রজেক্ট ফোল্ডারে চালান:
+**Easy way:** to do all the steps above at once, run this in the project folder:
 ```powershell
-.\runme.ps1              # পেজ + বট (বট শুরুতে PAUSED)
-.\runme.ps1 -Mode ui     # শুধু পেজ, বট ছাড়া
+.\runme.ps1              # page + bot (bot starts PAUSED)
+.\runme.ps1 -Mode ui     # page only, no bot
 .\runme.ps1 -Port 9000 -NoBrowser
-.\runme.ps1 -Reinstall   # আবার pip install করতে
+.\runme.ps1 -Reinstall   # run pip install again
 ```
-স্ক্রিপ্টটি `.venv` না থাকলে বানায়, দরকার হলে ইনস্টল করে, `.env` না থাকলে `.env.example` থেকে বানিয়ে Notepad-এ খোলে, তারপর `eldorado app` চালায়।
+The script creates `.venv` if it is missing, installs when needed, creates `.env` from `.env.example` if it is missing and opens it in Notepad, then runs `eldorado app`.
 
-> `Activate.ps1` চালাতে সমস্যা হলে (execution policy এরর), একবার চালান: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+> If `Activate.ps1` fails (execution policy error), run this once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
-`.env` ফাইলে আপনার ক্রেডেনশিয়াল বসান:
+Put your credentials in the `.env` file:
 ```env
 ELDORADO_CLIENT_ID=your_client_id_here
 ELDORADO_CLIENT_SECRET=your_client_secret_here
-ELDORADO_CREDENTIAL_EXPIRES=2027-02-12   # ঐচ্ছিক: ক্রেডেনশিয়ালের মেয়াদ, ৭ দিন বাকি থাকলে সতর্ক করবে
+ELDORADO_CREDENTIAL_EXPIRES=2027-02-12   # optional: credential expiry date, warns when 7 days are left
 ```
 
-`.env` ফাইল `.gitignore`-এ থাকবে, যাতে গিটে না যায়।
+`.env` is listed in `.gitignore`, so it never goes to git.
 
 ---
 
-## 💻 কমান্ড
+## 💻 Commands
 
-সব কমান্ড ও অপশনের পূর্ণ তালিকা [prd.md](prd.md)-র ৬.২ অংশে আছে। প্রতিটি রাইট কমান্ডে `--dry-run` ও `--yes` আছে। এই টুল শুধু **TopUp অফার** নিয়ে কাজ করে।
+The full list of commands and options is in section 6.2 of [prd.md](prd.md). Every write command has `--dry-run` and `--yes`. The tool works with **TopUp offers** only.
 
-### ক্রেডেনশিয়াল চেক
+### Check credentials
 ```powershell
 eldorado auth check
 ```
 
-### অফার (TopUp)
+### Offers (TopUp)
 ```powershell
-eldorado offers list --limit 10                  # শুধু পড়ে, কিছু বদলায় না
+eldorado offers list --limit 10                  # read-only, changes nothing
 eldorado offers list --status active --game <gameId>
 eldorado offers update --id <offer_id> --price 4.99 --dry-run
 eldorado offers update --id <offer_id> --price 4.99
@@ -132,40 +132,40 @@ eldorado offers pause <offer_id> [<offer_id> ...]
 eldorado offers resume <offer_id> [<offer_id> ...]
 ```
 
-### 🤖 অটো বিডিং
-প্রতিটি অফারের দাম অন্য সেলারদের সবচেয়ে কম দামের চেয়ে **০.০১ কম** রাখে। আপনি আগে থেকেই সবচেয়ে কম দামে থাকলে দাম বাড়িয়ে দ্বিতীয় দামের ০.০১ নিচে নেয়। `min_price`-এর নিচে কখনো নামে না।
+### 🤖 Auto Bidding
+Keeps each offer's price **0.01 below** the lowest price of the other sellers. It never goes below `min_price`. If you are already the cheapest, the price stays as it is: the market shows only the cheapest offer of each package, so the next seller's price is not visible.
 
-**সবচেয়ে সহজ:** ডেস্কটপে **Eldorado Bot** ডাবল-ক্লিক করুন। পেজ আর বট একসাথে চালু হবে, বট শুরুতে **PAUSED** থাকে। পেজে **Bot** বাটনে ক্লিক করলে চলবে। উইন্ডো বন্ধ করলে সব থামবে। (টার্মিনাল থেকে: `eldorado app`)
+**Easiest:** double-click **Eldorado Bot** on the desktop. The page and the bot start together, and the bot starts **PAUSED**. Click the **Bot** button on the page to run it. Closing the window stops everything. (From a terminal: `eldorado app`)
 
-আলাদা করে চালাতে:
+To run the parts separately:
 
-১. সেটিংস পেজ খুলুন। ব্রাউজারে `http://127.0.0.1:8765` খুলবে (শুধু আপনার কম্পিউটারে):
+1. Open the settings page. It opens `http://127.0.0.1:8765` in the browser (only on your computer):
 ```powershell
 eldorado ui
 ```
-২. প্রতিটি অফারে **Min** (এর নিচে কখনো নামবে না), **Max** (সস্তা সেলার চলে গেলে পরের সেলার খুঁজতে সর্বোচ্চ এই দাম) দিন, **ON** টিক দিন, তারপর **Save** চাপুন। **Preview** চাপলে দেখাবে বট কী দাম বসাত, কিছু পাঠায় না।
-৩. প্রথমে শুধু দেখুন, কিছু পাঠাবে না:
+2. For each offer, enter **Min** (never goes below this) and **Max** (the highest price when searching for the next seller after a cheaper one leaves), tick **ON**, then press **Save**. **Preview** shows what prices the bot would set, and sends nothing.
+3. First just look, nothing is sent:
 ```powershell
 eldorado bid run --once --dry-run
 ```
-৪. তারপর একবার লাইভ চালান, আর ড্যাশবোর্ডে দাম মিলিয়ে দেখুন:
+4. Then run it live once, and check the prices on the dashboard:
 ```powershell
 eldorado bid run --once
 ```
-৫. সব ঠিক থাকলে চালু রাখুন (প্রতি ৫ মিনিটে চলে, থামাতে Ctrl+C):
+5. If everything looks right, keep it running (runs every 5 minutes, Ctrl+C to stop):
 ```powershell
 eldorado bid run
 ```
 
-কোনো দাম পরিবর্তনের ফল অজানা থাকলে (timeout বা সার্ভার এরর) বট নিজেই থেমে যায়। তখন ড্যাশবোর্ডে চেক করুন।
+If the result of a price change is unknown (timeout or server error), the bot stops by itself. Check the dashboard when that happens.
 
-### অর্ডার
+### Orders
 ```powershell
-eldorado orders deliver <order_id> --dry-run   # কাজ করে
-eldorado orders deliver <order_id>             # লাইভ এখনো বন্ধ রাখা আছে
+eldorado orders deliver <order_id> --dry-run   # works
+eldorado orders deliver <order_id>             # live is still disabled
 ```
 
-### অ্যাকাউন্ট
+### Account
 ```powershell
 eldorado status online
 eldorado status offline
@@ -173,9 +173,9 @@ eldorado status offline
 
 ---
 
-## 🧪 টেস্টিং
+## 🧪 Testing
 
-টেস্ট কখনো লাইভ সার্ভারে যায় না। সব HTTP কল `respx` দিয়ে মক করা।
+Tests never reach the live server. Every HTTP call is mocked with `respx`.
 
 ```powershell
 pytest -v
@@ -185,20 +185,20 @@ pytest --cov=src/eldorado --cov-report=term-missing
 
 ---
 
-## 🔧 সমস্যা ও সমাধান
+## 🔧 Troubleshooting
 
-| সমস্যা | কী করবেন |
+| Problem | What to do |
 |---|---|
-| রিকোয়েস্ট রিজেক্ট হচ্ছে | টোকেনের মেয়াদ শেষ হয়ে থাকতে পারে, নতুন টোকেন নিন। টোকেন রিকোয়েস্টও ফেল করলে দেখুন ক্রেডেনশিয়াল রিভোক হয়েছে বা মেয়াদ শেষ হয়েছে কিনা। |
-| Client Secret হারিয়ে গেছে | ফেরত পাওয়া যায় না। ড্যাশবোর্ডে রিভোক করে নতুন বানান, তারপর `.env` আপডেট করুন। |
-| Generate বাটন কাজ করছে না | ইতিমধ্যে ২টি অ্যাক্টিভ ক্রেডেনশিয়াল আছে। একটি রিভোক করুন। |
-| সিক্রেট লিক হয়ে গেছে | সঙ্গে সঙ্গে রিভোক করে নতুন বানান। |
+| Requests are rejected | The token may have expired; get a new one. If the token request fails too, check whether the credential was revoked or has expired. |
+| Lost the Client Secret | It cannot be recovered. Revoke it on the dashboard, create a new one, then update `.env`. |
+| The Generate button does nothing | You already have 2 active credentials. Revoke one. |
+| The secret leaked | Revoke it right away and create a new one. |
 
-সমস্যা না মিটলে Eldorado-কে **api@eldorado.gg**-তে ইমেইল করুন (Seller API ড্যাশবোর্ডে দেওয়া ঠিকানা)। ইমেইলে Client ID, কোন এন্ডপয়েন্ট ও কখন কল করেছিলেন, আর পুরো এরর মেসেজ দিন। **Client Secret কখনো দেবেন না।**
+If the problem continues, email Eldorado at **api@eldorado.gg** (the address given on the Seller API dashboard). Include your Client ID, which endpoint you called and when, and the full error message. **Never send the Client Secret.**
 
 ---
 
-## 📄 ডিসক্লেইমার
+## 📄 Disclaimer
 
-- এটি Eldorado.gg-এর কোনো অফিসিয়াল সফটওয়্যার নয়। Eldorado Seller API ব্যবহার করে বানানো একটি ব্যক্তিগত টুল।
-- লাইসেন্স এখনো ঠিক করা হয়নি।
+- This is not official Eldorado.gg software. It is a personal tool built on the Eldorado Seller API.
+- No license has been chosen yet.

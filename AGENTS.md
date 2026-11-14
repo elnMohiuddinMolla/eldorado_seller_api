@@ -44,7 +44,7 @@ Do not add a dependency that is not listed here without updating `prd.md` first.
 ```
 eldorado_Seller_Api/
 ├── AGENTS.md                   # This file
-├── README.md                   # User guide (Bangla)
+├── README.md                   # User guide (English)
 ├── prd.md                      # Product requirements, source of truth (Bangla)
 ├── ELDORADO_SELLER_API.md      # Notes from the official article (Bangla)
 ├── api-spec.md                 # API spec (confirmed / assumed / unknown)
@@ -183,7 +183,7 @@ Only when the user asks for it, and only with endpoints marked `[Confirmed]`:
 
 ## 6. Documentation Language
 
-- User docs (`README.md`, `prd.md`, `ELDORADO_SELLER_API.md`): Bangla.
+- User docs: `README.md` in English; `prd.md` and `ELDORADO_SELLER_API.md` in Bangla.
 - Technical and agent docs (all other `.md` files): English.
 
 ---
