@@ -165,3 +165,13 @@ def test_orders_endpoint_needs_token(server: str) -> None:
     assert req(server + "/api/orders", token=None)[0] == 403
     status, body = req(server + "/api/orders")
     assert status == 200 and body == {"enabled": False}
+
+
+def test_offers_are_cached_until_reload(server: str, api: respx.MockRouter) -> None:
+    first = req(server + "/api/offers")[1]
+    mine = [r for r in api.routes if r.pattern and "predefinedOffers/me" in repr(r.pattern)][0]
+    before = mine.call_count
+    again = req(server + "/api/offers")[1]                 # cached: no new Eldorado call
+    assert mine.call_count == before and again["rows"] == first["rows"]
+    req(server + "/api/offers?fresh=1")                    # Reload button: live
+    assert mine.call_count == before + 1

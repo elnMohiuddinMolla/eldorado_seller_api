@@ -97,16 +97,18 @@ def make_handler(
                 self._json(HTTPStatus.BAD_GATEWAY, {"error": redact(str(exc))})
 
         def do_GET(self) -> None:  # noqa: N802
-            if self.path in ("/", "/index.html"):
+            path, _, query = self.path.partition("?")
+            if path in ("/", "/index.html"):
                 if self._guard(need_token=False):
                     self._send(HTTPStatus.OK, page, "text/html; charset=utf-8")
-            elif self.path == "/api/offers":
+            elif path == "/api/offers":
                 if self._guard(need_token=True):
-                    self._run(dashboard.rows)
-            elif self.path == "/api/orders":
+                    fresh = "fresh=1" in query.split("&")
+                    self._run(lambda: dashboard.rows(fresh=fresh))
+            elif path == "/api/orders":
                 if self._guard(need_token=True):
                     self._json(HTTPStatus.OK, watcher.snapshot() if watcher else {"enabled": False})
-            elif self.path == "/api/status":
+            elif path == "/api/status":
                 if self._guard(need_token=True):
                     self._json(HTTPStatus.OK, runner.status() if runner else {"state": "none"})
             else:

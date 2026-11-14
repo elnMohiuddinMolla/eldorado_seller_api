@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import Callable
 
@@ -39,6 +40,8 @@ class TokenManager:
         self._sleep = sleep
         self._token: TokenResponse | None = None
         self._expires_at = 0.0
+        # Parallel reads share one token; only one thread may fetch a new one at a time.
+        self._lock = threading.RLock()
 
     def seconds_left(self) -> float:
         if self._token is None:
@@ -50,13 +53,15 @@ class TokenManager:
         return f"{token.token_type} {token.access_token.get_secret_value()}"
 
     def force_refresh(self) -> None:
-        self._fetch()
+        with self._lock:
+            self._fetch()
 
     def _valid_token(self) -> TokenResponse:
-        if self._token is None or self.seconds_left() <= REFRESH_MARGIN_SECONDS:
-            self._fetch()
-        assert self._token is not None
-        return self._token
+        with self._lock:
+            if self._token is None or self.seconds_left() <= REFRESH_MARGIN_SECONDS:
+                self._fetch()
+            assert self._token is not None
+            return self._token
 
     def _fetch(self) -> None:
         body = self._request.to_body()

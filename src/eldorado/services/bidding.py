@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, Decimal
 from typing import Literal
@@ -26,6 +27,7 @@ CENT = Decimal("0.01")
 PAGE_SIZE = 50
 MAX_PAGES = 20
 WRITE_DELAY_SECONDS = 1.0
+READ_WORKERS = 2  # parallel market reads (4 hit HTTP 429 live); writes are always one at a time
 # After a search up to max_price ends back at min_price (the cheaper seller was still there,
 # e.g. a tie at min_price), do not search again for this long. Stops a min <-> max loop.
 PROBE_BACKOFF_SECONDS = 30 * 60
@@ -149,15 +151,41 @@ def decide(
     return base
 
 
-def fetch_market(client: OffersClient, game_id: str) -> list[Offer]:
-    """Every page of the public market for one game (one offer per package and region)."""
-    offers: list[Offer] = []
-    for index in range(FIRST_PAGE, FIRST_PAGE + MAX_PAGES):
-        page = client.list_game(game_id=game_id, page_index=index, page_size=PAGE_SIZE)
-        offers.extend(item.offer for item in page.results)
-        if not page.results or index >= page.total_pages:
-            break
+def _pool() -> ThreadPoolExecutor:
+    return ThreadPoolExecutor(max_workers=READ_WORKERS, thread_name_prefix="market")
+
+
+def fetch_market(client: OffersClient, game_id: str, pool: ThreadPoolExecutor | None = None) -> list[Offer]:
+    """Every page of the public market for one game (one offer per package and region).
+    Page 1 tells how many pages there are; the rest are read in parallel."""
+    first = client.list_game(game_id=game_id, page_index=FIRST_PAGE, page_size=PAGE_SIZE)
+    offers = [item.offer for item in first.results]
+    last = min(first.total_pages, FIRST_PAGE + MAX_PAGES - 1)
+    if not first.results or last <= FIRST_PAGE:
+        return offers
+
+    def page(index: int) -> list[Offer]:
+        return [item.offer for item in
+                client.list_game(game_id=game_id, page_index=index, page_size=PAGE_SIZE).results]
+
+    indexes = range(FIRST_PAGE + 1, last + 1)
+    if pool is None:
+        with _pool() as own:
+            rest = list(own.map(page, indexes))
+    else:
+        rest = list(pool.map(page, indexes))
+    for chunk in rest:
+        offers.extend(chunk)
     return offers
+
+
+def fetch_markets(client: OffersClient, game_ids: list[str]) -> dict[str, list[Offer]]:
+    """Markets of several games at once. Any error is raised (nothing is half-used)."""
+    if not game_ids:
+        return {}
+    with _pool() as games, _pool() as pages:
+        futures = {g: games.submit(fetch_market, client, g, pages) for g in game_ids}
+        return {g: f.result() for g, f in futures.items()}
 
 
 class Bidder:
@@ -201,14 +229,13 @@ class Bidder:
                 break
         return found
 
-    def _game_offers(self, game_id: str) -> list[Offer]:
-        return fetch_market(self._client, game_id)
-
     def plan(self) -> CycleReport:
         """Reads only. Decides what each configured offer's price should be."""
         report = CycleReport()
         mine = self._my_offers()
-        market: dict[str, list[Offer]] = {}
+        wanted = sorted({o.game_id for r in self._config.enabled_rules()
+                         if (o := mine.get(r.id)) is not None and o.game_id})
+        market: dict[str, list[Offer]] = fetch_markets(self._client, wanted)
         for rule in self._config.enabled_rules():
             offer = mine.get(rule.id)
             if offer is None:
@@ -223,8 +250,6 @@ class Bidder:
                     reason="offer has no gameId", current=offer.price.amount,
                 ))
                 continue
-            if offer.game_id not in market:
-                market[offer.game_id] = self._game_offers(offer.game_id)
             # First cycle after start: no memory, so sitting exactly at min_price counts as held.
             was_held = self._held.get(offer.id, offer.price.amount == rule.min_price)
             now = self._clock()

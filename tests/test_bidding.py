@@ -349,3 +349,21 @@ def test_tie_at_min_does_not_loop_between_min_and_max(api: respx.MockRouter, tok
     now["t"] = PROBE_BACKOFF_SECONDS + 1  # backoff over -> one new search is allowed
     bot.run_cycle(dry_run=False)
     assert price["v"] == 5.00
+
+
+def test_fetch_market_reads_every_page_once(base: BaseClient, api: respx.MockRouter, token_route: respx.Route) -> None:
+    from eldorado.services.bidding import fetch_market, fetch_markets
+
+    def view(request: httpx.Request) -> httpx.Response:
+        i = int(request.url.params["pageIndex"])
+        game = request.url.params["gameId"]
+        body = market(offer_json(f"{game}-p{i}", 1.0 + i, user_id="r"))
+        body["totalPages"] = 3 if game == "big" else 1
+        return httpx.Response(200, json=body)
+
+    route = api.get(GAME_OFFERS_PATH).mock(side_effect=view)
+    ids = sorted(o.id for o in fetch_market(OffersClient(base), "big"))
+    assert ids == ["big-p1", "big-p2", "big-p3"]
+    assert route.call_count == 3
+    both = fetch_markets(OffersClient(base), ["big", "small"])
+    assert len(both["big"]) == 3 and [o.id for o in both["small"]] == ["small-p1"]

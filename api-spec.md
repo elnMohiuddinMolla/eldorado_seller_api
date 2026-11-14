@@ -33,7 +33,7 @@
 | Money in JSON | `MoneyBaseDTO = {"amount": number, "currency": Currency}`, e.g. `{"amount": 4.99, "currency": "USD"}`. The tool keeps `Decimal` internally and serializes to a JSON number | `[Confirmed] (swagger)` |
 | `swagger` header | Swagger marks a header `swagger` as required, but every live call works without it (2026-11-14). The tool does not send it | `[Confirmed]` (live) |
 | Security scheme in spec | None declared. Protected operations are labelled `(Auth)` in their summary. Auth is the bearer token (section 3) | `[Confirmed] (swagger)` |
-| Rate limits | - | `[Unknown]` |
+| Rate limits | Not documented and no rate-limit headers. Live (2026-11-14): 3 bursts of ~20 market reads within ~10 s, 4 in parallel, got **HTTP 429**. The tool now reads at most 2 in parallel and the page caches Eldorado data for 60 s | `[Confirmed]` exists, size `[Unknown]` |
 | Official API reference location | Swagger UI: `https://www.eldorado.gg/swagger/seller/index.html` (linked as "View more endpoints" on the dashboard). Needs a logged-in browser session; without it the server returns `403 "User is unauthorized to access Swagger."` | `[Confirmed]` exists |
 
 ---

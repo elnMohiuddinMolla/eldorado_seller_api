@@ -213,18 +213,21 @@ $("undercut").addEventListener("input", () => setDirty(true));
 $("game").addEventListener("change", render);
 $("onlyOn").addEventListener("change", render);
 
-async function load() {
+async function load(fresh) {
   if (dirty && !confirm("Discard unsaved changes?")) return;
   msg("info", "Loading from Eldorado...");
   try {
-    data = await call("GET", "/api/offers");
+    data = await call("GET", "/api/offers" + (fresh ? "?fresh=1" : ""));
     $("undercut").value = data.undercut;
     showBot(); refreshStatus();
     const games = [...new Set(data.rows.map((r) => r.game))];
     const sel = $("game"), keep = sel.value;
     sel.innerHTML = '<option value="">All games</option>' + games.map((g) => "<option>" + esc(g) + "</option>").join("");
     sel.value = games.includes(keep) ? keep : "";
-    setDirty(false); render(); msg("ok", "Loaded " + data.rows.length + " offers.");
+    setDirty(false); render();
+    const age = data.data_age_seconds || 0;
+    msg("ok", "Loaded " + data.rows.length + " offers" +
+        (age ? " (prices from " + age + " s ago; click Reload for live prices)." : " (live prices)."));
   } catch (e) { msg("bad", "Could not load: " + e.message); }
 }
 
@@ -331,7 +334,7 @@ showNotifyButton();
 refreshOrders();
 setInterval(refreshOrders, 20000);
 
-$("reload").addEventListener("click", load);
+$("reload").addEventListener("click", () => load(true));
 $("save").addEventListener("click", save);
 $("preview").addEventListener("click", preview);
 window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });

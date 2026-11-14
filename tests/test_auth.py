@@ -98,3 +98,12 @@ def test_new_token_value_is_used_after_refresh(
     assert manager.authorization_header().endswith("first-token-111")
     manager.force_refresh()
     assert manager.authorization_header().endswith("second-token-222")
+
+
+def test_parallel_reads_fetch_one_token(tokens, token_route) -> None:  # type: ignore[no-untyped-def]
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        headers = list(pool.map(lambda _: tokens.authorization_header(), range(16)))
+    assert len(set(headers)) == 1
+    assert token_route.call_count == 1

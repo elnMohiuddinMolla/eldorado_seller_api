@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -19,8 +21,11 @@ from eldorado.core.bidding_config import (
 )
 from eldorado.core.exceptions import ConfigError, EldoradoError
 from eldorado.models.offer import Offer
-from eldorado.services.bidding import Bidder, fetch_market
+from eldorado.services.bidding import Bidder, fetch_markets
 from eldorado.services.offers import OfferService
+
+
+CACHE_SECONDS = 60
 
 
 def _s(value: Decimal | None) -> str | None:
@@ -28,23 +33,32 @@ def _s(value: Decimal | None) -> str | None:
 
 
 class Dashboard:
-    def __init__(self, client: OffersClient, config_path: Path) -> None:
+    def __init__(self, client: OffersClient, config_path: Path, *,
+                 clock: Callable[[], float] = time.monotonic) -> None:
         self._client = client
         self._path = config_path
+        self._clock = clock
+        self._cache: tuple[float, list[Offer], dict[str, list[Offer]]] | None = None
+
+    def _eldorado_data(self, fresh: bool) -> tuple[list[Offer], dict[str, list[Offer]], float]:
+        """My offers + markets. Reused for CACHE_SECONDS unless fresh=True (Reload button)."""
+        now = self._clock()
+        if not fresh and self._cache is not None and now - self._cache[0] < CACHE_SECONDS:
+            return self._cache[1], self._cache[2], now - self._cache[0]
+        offers = [o for o in OfferService(self._client, AuditLogger()).list_mine()
+                  if o.state in ("Active", "Paused")]
+        market = fetch_markets(self._client, sorted({o.game_id for o in offers if o.game_id}))
+        self._cache = (now, offers, market)
+        return offers, market, 0.0
 
     def config(self) -> BiddingConfig:
         return load_bidding_config(self._path, require_enabled=False)
 
-    def rows(self) -> dict[str, Any]:
+    def rows(self, fresh: bool = False) -> dict[str, Any]:
         config = self.config()
         rules = {r.id: r for r in config.offers}
         # Every TopUp offer on the account, any game: new uploads appear, deleted ones vanish.
-        offers = [o for o in OfferService(self._client, AuditLogger()).list_mine()
-                  if o.state in ("Active", "Paused")]
-        market: dict[str, list[Offer]] = {
-            g: fetch_market(self._client, g)
-            for g in sorted({o.game_id for o in offers if o.game_id})
-        }
+        offers, market, age = self._eldorado_data(fresh)
 
         def name(o: Offer) -> str:
             return game_name(o.game_id, o.seo_alias, o.title)
@@ -69,7 +83,7 @@ class Dashboard:
                 "allow_big_change": bool(rule and rule.allow_big_change),
             })
         return {"undercut": str(config.undercut), "interval_seconds": config.interval_seconds,
-                "paused": config.paused, "rows": rows}
+                "paused": config.paused, "rows": rows, "data_age_seconds": int(age)}
 
     def save(self, payload: dict[str, Any]) -> BiddingConfig:
         """Merge edited rows into the file. Rules for offers not on the page are kept."""
