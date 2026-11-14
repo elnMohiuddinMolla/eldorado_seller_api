@@ -107,6 +107,9 @@ def make_handler(
                 if self._guard(need_token=True):
                     fresh = "fresh=1" in query.split("&")
                     self._run(lambda: dashboard.rows(fresh=fresh))
+            elif path == "/api/activity":
+                if self._guard(need_token=True):
+                    self._run(dashboard.activity)
             elif path == "/api/orders":
                 if self._guard(need_token=True):
                     self._json(HTTPStatus.OK, watcher.snapshot() if watcher else {"enabled": False})

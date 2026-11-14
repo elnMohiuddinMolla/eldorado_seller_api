@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from eldorado.client.offers import OffersClient
-from eldorado.core.audit import AuditLogger
+from eldorado.core.audit import DEFAULT_AUDIT_PATH, AuditLogger
 from eldorado.core.bidding_config import (
     CONFIG_WRITE_LOCK,
     game_name,
@@ -141,3 +143,39 @@ class Dashboard:
             "id": d.offer_id, "label": d.label, "action": d.kind, "reason": d.reason,
             "current": _s(d.current), "lowest": _s(d.lowest_competitor), "target": _s(d.target),
         } for d in report.decisions]
+
+    def activity(self, limit: int = 15, audit_path: Path = DEFAULT_AUDIT_PATH) -> dict[str, Any]:
+        """Recent live price changes from the audit log, newest first, plus today's count.
+        Reads only the local log file (no Eldorado call)."""
+        labels = {r.id: r.note or r.id[:8] for r in self.config().offers}
+        if self._cache is not None:
+            for o in self._cache[1]:
+                labels.setdefault(o.id, f"{game_name(o.game_id, o.seo_alias, o.title)} {o.package_name()}")
+        items: list[dict[str, Any]] = []
+        today = datetime.now().astimezone().date()
+        changed_today = 0
+        try:
+            lines = audit_path.read_text(encoding="utf-8").splitlines()[-2000:]
+        except OSError:
+            lines = []
+        for line in lines:
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if rec.get("dry_run") or rec.get("entity_type") != "offer":
+                continue
+            try:
+                ts = datetime.fromisoformat(str(rec["ts"]).replace("Z", "+00:00")).astimezone()
+            except (KeyError, ValueError):
+                continue
+            if rec.get("outcome") == "success" and ts.date() == today:
+                changed_today += 1
+            items.append({
+                "time": ts.strftime("%H:%M"), "date": ts.strftime("%d %b"),
+                "label": labels.get(str(rec.get("entity_id")), str(rec.get("entity_id"))[:8]),
+                "before": (rec.get("before") or {}).get("price"),
+                "after": (rec.get("after") or {}).get("price"),
+                "outcome": rec.get("outcome"), "action": rec.get("action"),
+            })
+        return {"changed_today": changed_today, "items": list(reversed(items))[:limit]}

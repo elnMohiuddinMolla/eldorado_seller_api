@@ -91,6 +91,15 @@ pip install -e ".[dev]"
 copy .env.example .env
 ```
 
+**সহজ উপায়:** উপরের সব ধাপ একবারে করতে প্রজেক্ট ফোল্ডারে চালান:
+```powershell
+.\runme.ps1              # পেজ + বট (বট শুরুতে PAUSED)
+.\runme.ps1 -Mode ui     # শুধু পেজ, বট ছাড়া
+.\runme.ps1 -Port 9000 -NoBrowser
+.\runme.ps1 -Reinstall   # আবার pip install করতে
+```
+স্ক্রিপ্টটি `.venv` না থাকলে বানায়, দরকার হলে ইনস্টল করে, `.env` না থাকলে `.env.example` থেকে বানিয়ে Notepad-এ খোলে, তারপর `eldorado app` চালায়।
+
 > `Activate.ps1` চালাতে সমস্যা হলে (execution policy এরর), একবার চালান: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
 `.env` ফাইলে আপনার ক্রেডেনশিয়াল বসান:

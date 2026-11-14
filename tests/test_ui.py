@@ -188,3 +188,9 @@ def test_interval_below_one_minute_is_refused(server: str, cfg: Path) -> None:
     status, body = req(server + "/api/config", "POST", {"interval_seconds": 30, "rows": []})
     assert status == 400 and "interval_seconds" in body["error"]
     assert cfg.read_text(encoding="utf-8") == before
+
+
+def test_activity_endpoint(server: str) -> None:
+    assert req(server + "/api/activity", token=None)[0] == 403
+    status, body = req(server + "/api/activity")
+    assert status == 200 and "changed_today" in body and isinstance(body["items"], list)
