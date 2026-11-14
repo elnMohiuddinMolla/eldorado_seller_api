@@ -15,6 +15,7 @@ from eldorado.client.offers import OffersClient
 from eldorado.core.audit import AuditLogger
 from eldorado.core.bidding_config import DEFAULT_BIDDING_PATH, MIN_INTERVAL_SECONDS, load_bidding_config
 from eldorado.core.exceptions import (
+    AuditLogError,
     AuthenticationError,
     EldoradoError,
     WriteOutcomeUnknownError,
@@ -76,6 +77,13 @@ def run(
 
     audit = AuditLogger()
     lock = BotLock()
+
+    def paused_now() -> bool:
+        """Checked before every live write, so `paused = true` saved mid-cycle stops the rest."""
+        try:
+            return load_bidding_config(config_path, require_enabled=False).paused
+        except EldoradoError:
+            return False
     try:
         if not dry_run:
             lock.acquire()  # refuse to run next to another live bot
@@ -100,8 +108,10 @@ def run(
                     console.print(f"{stamp} No offer is ON. Nothing sent.")
                 else:
                     try:
-                        _print_report(bidder.run_cycle(dry_run=dry_run))
-                    except (WriteOutcomeUnknownError, AuthenticationError):
+                        _print_report(bidder.run_cycle(dry_run=dry_run, should_stop=paused_now))
+                    except (WriteOutcomeUnknownError, AuthenticationError, AuditLogError):
+                        # Never carry on: with no audit record, the next cycle could repeat a
+                        # write whose outcome is unknown.
                         raise
                     except EldoradoError as exc:
                         if once:

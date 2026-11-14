@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from eldorado.client.orders import OrdersClient
-from eldorado.core.audit import AuditLogger
+from eldorado.core.audit import AuditLogger, record_unknown
 from eldorado.core.exceptions import (
     EldoradoError,
     EndpointNotConfirmedError,
@@ -51,10 +51,8 @@ class OrderService:
         try:
             status = self._client.mark_delivered(order_id)
         except WriteOutcomeUnknownError as exc:
-            self._audit.write(
-                action=ACTION_DELIVER, entity_type="order", entity_id=order_id, after=after,
-                outcome="unknown", dry_run=False, http_status=exc.http_status, message=str(exc),
-            )
+            record_unknown(self._audit, exc, action=ACTION_DELIVER, entity_type="order",
+                           entity_id=order_id, after=after)
             raise
         except EldoradoError as exc:
             self._audit.write(

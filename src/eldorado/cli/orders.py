@@ -22,7 +22,7 @@ def deliver(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the change, send nothing."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
-    """Mark an order as delivered (PUT /api/orders/me/{orderId}/delivered)."""
+    """Mark an order as delivered (PUT /api/v1/orders/me/{orderId}/deliver). Live is disabled."""
     order_id = order_id.strip()
     if not order_id:
         raise typer.BadParameter("order id must not be empty")

@@ -45,6 +45,15 @@ class Settings(BaseSettings):
             raise ValueError("must not be empty")
         return value
 
+    @field_validator("base_url")
+    @classmethod
+    def _https_only(cls, value: str) -> str:
+        # The token request carries the Client secret: never send it over plain http.
+        value = value.strip()
+        if not value.lower().startswith("https://"):
+            raise ValueError("must start with https://")
+        return value
+
     @field_validator("client_secret")
     @classmethod
     def _secret_not_blank(cls, value: SecretStr) -> SecretStr:

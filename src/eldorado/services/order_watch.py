@@ -15,7 +15,7 @@ from typing import Any
 
 from eldorado.client.base import BaseClient
 from eldorado.client.orders import list_seller_orders
-from eldorado.core.bidding_config import GAME_NAMES
+from eldorado.core.bidding_config import GAME_NAMES  # noqa: F401 - re-exported (tests use it)
 from eldorado.core.exceptions import EldoradoError
 from eldorado.core.logging import redact
 from eldorado.models.order import SellerOrder
@@ -56,9 +56,8 @@ class OrderWatcher:
 
     def poll(self) -> list[SellerOrder]:
         """One check. Returns the orders that are new since the last check."""
-        recent = [SellerOrder.from_api(r, GAME_NAMES) for r in list_seller_orders(self._base, page_size=20)]
-        pending = [SellerOrder.from_api(r, GAME_NAMES)
-                   for r in list_seller_orders(self._base, state="Paid", page_size=50)]
+        recent = list_seller_orders(self._base, page_size=20)
+        pending = list_seller_orders(self._base, state="Paid", page_size=50)
         new: list[SellerOrder] = []
         with self._lock:
             for order in recent + pending:

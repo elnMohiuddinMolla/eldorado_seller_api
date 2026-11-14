@@ -55,6 +55,7 @@ eldorado_Seller_Api/
 ├── .env.example
 ├── .gitignore
 ├── bidding.example.toml        # template; bidding.toml (ignored) holds Min/Max/ON per offer
+├── runme.ps1                   # one-click setup + start (Windows)
 ├── logs/                       # audit.jsonl, bot.lock (ignored by git)
 ├── src/eldorado/
 │   ├── __init__.py
@@ -94,6 +95,7 @@ eldorado_Seller_Api/
 │       └── instance_lock.py    # one live bot at a time
 └── tests/
     ├── conftest.py
+    ├── factories.py            # Swagger-shaped JSON for mocked responses
     ├── test_auth.py
     ├── test_offers.py
     ├── test_orders.py
@@ -102,9 +104,11 @@ eldorado_Seller_Api/
     ├── test_dry_run.py
     ├── test_audit.py
     ├── test_resilience.py
+    ├── test_safety_regressions.py  # audit fixes (2026-11-14)
     ├── test_security.py
     ├── test_bidding.py
     ├── test_bot_runner.py
+    ├── test_order_watch.py
     ├── test_ui.py
     └── test_audit_fixes.py
 ```

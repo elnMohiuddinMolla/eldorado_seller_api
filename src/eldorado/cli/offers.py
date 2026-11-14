@@ -61,6 +61,8 @@ def update(
         new_price = Decimal(price)
     except InvalidOperation:
         raise typer.BadParameter("--price must be a number") from None
+    if not new_price.is_finite():
+        raise typer.BadParameter("--price must be a number (not NaN or Infinity)")
     try:
         with open_client() as base:
             service = OfferService(OffersClient(base), AuditLogger())

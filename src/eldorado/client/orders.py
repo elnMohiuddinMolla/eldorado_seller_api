@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from urllib.parse import quote
 
 from eldorado.client.base import BaseClient
+from eldorado.core.bidding_config import GAME_NAMES
 from eldorado.core.exceptions import EldoradoAPIError
+from eldorado.models.order import SellerOrder
+
+log = logging.getLogger("eldorado.client")
 
 
 def deliver_path(order_id: str) -> str:
@@ -28,8 +33,11 @@ class OrdersClient:
 SELLER_ORDERS_PATH = "/api/v1/orders/me/seller/orders"
 
 
-def list_seller_orders(base: BaseClient, *, state: str | None = None, page_size: int = 20) -> list[dict[str, object]]:
-    """Read-only. Raw OrderPrivateViewModel dicts (the caller keeps only what it needs)."""
+def list_seller_orders(
+    base: BaseClient, *, state: str | None = None, page_size: int = 20
+) -> list[SellerOrder]:
+    """Read-only. Orders without buyer data. An order with an unexpected shape is skipped
+    (and counted in a warning) so one odd order never hides all the others."""
     params: dict[str, object] = {"displayFilter": "DisplaySellingOrders", "pageSize": page_size}
     if state:
         params["orderState"] = state
@@ -41,4 +49,15 @@ def list_seller_orders(base: BaseClient, *, state: str | None = None, page_size:
     results = data.get("results") if isinstance(data, dict) else None
     if not isinstance(results, list):
         raise EldoradoAPIError(f"GET {SELLER_ORDERS_PATH} returned an unexpected format.")
-    return [r for r in results if isinstance(r, dict)]
+    orders: list[SellerOrder] = []
+    skipped = 0
+    for raw in results:
+        try:
+            if not isinstance(raw, dict):
+                raise ValueError("not an object")
+            orders.append(SellerOrder.from_api(raw, GAME_NAMES))
+        except (ValueError, TypeError):
+            skipped += 1
+    if skipped:
+        log.warning("GET %s: skipped %d order(s) with an unexpected format", SELLER_ORDERS_PATH, skipped)
+    return orders

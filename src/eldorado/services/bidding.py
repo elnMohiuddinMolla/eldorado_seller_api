@@ -15,7 +15,7 @@ from decimal import ROUND_DOWN, Decimal
 from typing import Literal
 
 from eldorado.client.offers import FIRST_PAGE, OffersClient
-from eldorado.core.audit import AuditLogger
+from eldorado.core.audit import AuditLogger, record_unknown
 from eldorado.core.bidding_config import BiddingConfig, OfferRule
 from eldorado.core.exceptions import EldoradoError, WriteOutcomeUnknownError
 from eldorado.models.offer import Money, Offer
@@ -56,6 +56,15 @@ class CycleReport:
 
     def changes(self) -> list[Decision]:
         return [d for d in self.decisions if d.kind == "change"]
+
+
+@dataclass
+class BidderMemory:
+    """What a Bidder remembers between cycles (in memory only, per bot run)."""
+
+    held: dict[str, bool] = field(default_factory=dict)
+    probing: set[str] = field(default_factory=set)
+    probe_blocked_until: dict[str, float] = field(default_factory=dict)
 
 
 def _usd_price(offer: Offer) -> Decimal | None:
@@ -214,6 +223,16 @@ class Bidder:
     def config(self) -> BiddingConfig:
         return self._config
 
+    def memory(self) -> BidderMemory:
+        """A copy of the between-cycle memory, so a preview plans exactly like the bot.
+        The copies are taken without a lock: dict()/set() of a dict/set is atomic in CPython."""
+        return BidderMemory(dict(self._held), set(self._probing), dict(self._probe_blocked_until))
+
+    def restore_memory(self, memory: BidderMemory) -> None:
+        self._held = dict(memory.held)
+        self._probing = set(memory.probing)
+        self._probe_blocked_until = dict(memory.probe_blocked_until)
+
     def set_config(self, config: BiddingConfig) -> None:
         """Swap in settings re-read from bidding.toml between cycles."""
         self.config_changed = config != self._config
@@ -275,11 +294,17 @@ class Bidder:
             report.decisions.append(decision)
         return report
 
-    def run_cycle(self, *, dry_run: bool) -> CycleReport:
+    def run_cycle(
+        self, *, dry_run: bool, should_stop: Callable[[], bool] = lambda: False
+    ) -> CycleReport:
+        """should_stop is checked before every live write, so a pause clicked mid-cycle
+        stops the remaining writes (they are marked not_sent)."""
         report = self.plan()
         pilot_done = False
         stop = False
         for decision in report.changes():
+            if not stop and not dry_run and should_stop():
+                stop = True
             if stop:
                 decision.result = "not_sent"
                 continue
@@ -305,10 +330,9 @@ class Bidder:
                 )
             except WriteOutcomeUnknownError as exc:
                 decision.result = "unknown"
-                self._audit.write(
-                    action=ACTION_BID, entity_type="offer", entity_id=decision.offer_id,
-                    before=before, after=after, dry_run=False, pilot=decision.pilot,
-                    outcome="unknown", http_status=exc.http_status, message=str(exc),
+                record_unknown(
+                    self._audit, exc, action=ACTION_BID, entity_type="offer",
+                    entity_id=decision.offer_id, before=before, after=after, pilot=decision.pilot,
                 )
                 raise
             except EldoradoError as exc:

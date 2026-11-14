@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from eldorado.client.account import AccountClient
-from eldorado.core.audit import AuditLogger
+from eldorado.core.audit import AuditLogger, record_unknown
 from eldorado.core.exceptions import EldoradoError, WriteOutcomeUnknownError
 
 ACTION_STATUS = "seller.status"
@@ -24,10 +24,13 @@ class AccountService:
             raise RuntimeError("AccountService needs a client for live calls")
         try:
             status = self._client.set_online(online)
+        except WriteOutcomeUnknownError as exc:
+            record_unknown(self._audit, exc, action=ACTION_STATUS, entity_type="seller_status",
+                           entity_id="me", after=after)
+            raise
         except EldoradoError as exc:
-            outcome = "unknown" if isinstance(exc, WriteOutcomeUnknownError) else "failed"
             self._audit.write(action=ACTION_STATUS, entity_type="seller_status", entity_id="me",
-                              after=after, dry_run=False, outcome=outcome,
+                              after=after, dry_run=False, outcome="failed",
                               http_status=exc.http_status, message=str(exc))
             raise
         self._audit.write(action=ACTION_STATUS, entity_type="seller_status", entity_id="me",

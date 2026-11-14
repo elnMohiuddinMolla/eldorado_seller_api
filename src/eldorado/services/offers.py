@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Literal
 
 from eldorado.client.offers import FIRST_PAGE, OffersClient
-from eldorado.core.audit import AuditLogger
+from eldorado.core.audit import AuditLogger, record_unknown
 from eldorado.core.exceptions import (
     EldoradoError,
     PriceGuardError,
@@ -64,8 +64,9 @@ class OfferService:
         raise ResourceNotFoundError(f"Offer {offer_id} is not one of your TopUp offers.")
 
     def plan_price(self, offer_id: str, price: Decimal, *, allow_big_change: bool) -> PriceChange:
-        if price <= 0:
-            raise PriceGuardError("Price must be greater than 0.")
+        # is_finite first: comparing NaN with <= raises InvalidOperation.
+        if not price.is_finite() or price <= 0:
+            raise PriceGuardError("Price must be a number greater than 0.")
         offer = self.find(offer_id)
         change = PriceChange(
             offer_id=offer.id, label=offer.label(), before=offer.price.amount,
@@ -87,10 +88,13 @@ class OfferService:
         try:
             status = self._live_client().change_price(
                 change.offer_id, Money(amount=change.after, currency=change.currency))
+        except WriteOutcomeUnknownError as exc:
+            record_unknown(self._audit, exc, action=ACTION_UPDATE, entity_type="offer",
+                           entity_id=change.offer_id, before=before, after=after)
+            raise
         except EldoradoError as exc:
-            outcome: Outcome = "unknown" if isinstance(exc, WriteOutcomeUnknownError) else "failed"
             self._audit.write(action=ACTION_UPDATE, entity_type="offer", entity_id=change.offer_id,
-                              before=before, after=after, dry_run=False, outcome=outcome,
+                              before=before, after=after, dry_run=False, outcome="failed",
                               http_status=exc.http_status, message=str(exc))
             raise
         self._audit.write(action=ACTION_UPDATE, entity_type="offer", entity_id=change.offer_id,
@@ -124,9 +128,8 @@ class OfferService:
             try:
                 status = call(offer_id)
             except WriteOutcomeUnknownError as exc:
-                self._audit.write(action=action, entity_type="offer", entity_id=offer_id, after=after,
-                                  dry_run=False, pilot=pilot, outcome="unknown",
-                                  http_status=exc.http_status, message=str(exc))
+                record_unknown(self._audit, exc, action=action, entity_type="offer",
+                               entity_id=offer_id, after=after, pilot=pilot)
                 results.append(ItemResult(offer_id, "unknown", pilot, str(exc)))
                 results.extend(ItemResult(i, "not_sent", False) for i in offer_ids[index + 1:])
                 return results

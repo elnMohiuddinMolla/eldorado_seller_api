@@ -97,6 +97,9 @@ def make_handler(
                 self._json(HTTPStatus.BAD_REQUEST, {"error": redact(str(exc))})
             except EldoradoError as exc:
                 self._json(HTTPStatus.BAD_GATEWAY, {"error": redact(str(exc))})
+            except Exception as exc:  # noqa: BLE001 - answer with JSON, never drop the connection
+                self._json(HTTPStatus.INTERNAL_SERVER_ERROR,
+                           {"error": f"internal error ({type(exc).__name__})"})
 
         def do_GET(self) -> None:  # noqa: N802
             path, _, query = self.path.partition("?")
@@ -125,7 +128,13 @@ def make_handler(
             if self.headers.get_content_type() != "application/json":
                 self._json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "JSON only"})
                 return
-            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                length = -1
+            if length < 0:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "bad Content-Length"})
+                return
             if length > MAX_BODY_BYTES:
                 self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "too large"})
                 return
@@ -213,7 +222,11 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
             set_paused(config_path, True)
         with open_client() as page_client, open_client() as bot_client, \
                 open_client() as order_client:
-            dashboard = Dashboard(OffersClient(page_client), config_path)
+            dashboard = Dashboard(
+                OffersClient(page_client), config_path,
+                # The preview plans with a copy of the bot's memory, so it matches the bot.
+                bot_memory=lambda: runner.bidder_memory() if runner is not None else None,
+            )
             if with_bot:
                 runner = BotRunner(
                     OffersClient(bot_client), AuditLogger(), config_path,
@@ -223,7 +236,7 @@ def _serve(config_path: Path, port: int, no_browser: bool, *, with_bot: bool) ->
                 )
                 thread = threading.Thread(target=runner.loop, name="bot", daemon=True)
             watcher = OrderWatcher(order_client, on_new=_announce_orders,
-                                   log=lambda m: err_console.print(f"[yellow]{m}[/yellow]"))
+                                   log=lambda m: err_console.print(f"{_now()} [yellow]{escape(m)}[/yellow]"))
             threading.Thread(target=watcher.loop, name="orders", daemon=True).start()
             server = LocalServer(("127.0.0.1", port),
                                  make_handler(dashboard, token, port, runner, watcher))

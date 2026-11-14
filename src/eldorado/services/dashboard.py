@@ -23,7 +23,7 @@ from eldorado.core.bidding_config import (
 )
 from eldorado.core.exceptions import ConfigError, EldoradoError
 from eldorado.models.offer import Offer
-from eldorado.services.bidding import Bidder, fetch_markets
+from eldorado.services.bidding import Bidder, BidderMemory, fetch_markets
 from eldorado.services.offers import OfferService
 
 
@@ -34,12 +34,35 @@ def _s(value: Decimal | None) -> str | None:
     return None if value is None else str(value)
 
 
+def _text(value: Any, what: str) -> str:
+    """A price box from the page: text, or a plain number. Anything else is a ConfigError."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return str(value)
+    raise ConfigError(f"{what} must be text or a number")
+
+
+def _flag(value: Any, what: str) -> bool:
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ConfigError(f"{what} must be true or false")
+    return value
+
+
 class Dashboard:
     def __init__(self, client: OffersClient, config_path: Path, *,
-                 clock: Callable[[], float] = time.monotonic) -> None:
+                 clock: Callable[[], float] = time.monotonic,
+                 bot_memory: Callable[[], BidderMemory | None] = lambda: None) -> None:
+        """bot_memory: the running bot's between-cycle memory (`eldorado app`), so the preview
+        shows what the bot itself would do. Without a bot the preview starts from nothing."""
         self._client = client
         self._path = config_path
         self._clock = clock
+        self._bot_memory = bot_memory
         self._cache: tuple[float, list[Offer], dict[str, list[Offer]]] | None = None
 
     def _eldorado_data(self, fresh: bool) -> tuple[list[Offer], dict[str, list[Offer]], float]:
@@ -94,29 +117,40 @@ class Dashboard:
 
     def _save(self, payload: dict[str, Any]) -> BiddingConfig:
         current = self.config()
+        rows = payload.get("rows") or []
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+            raise ConfigError("rows must be a list of objects")
+        if "paused" in payload:
+            _flag(payload["paused"], "paused")
         edited: list[OfferRule] = []
         errors: list[str] = []
-        for i, row in enumerate(payload.get("rows") or []):
-            min_price = (row.get("min_price") or "").strip()
-            max_price = (row.get("max_price") or "").strip()
+        for i, row in enumerate(rows):
             label = f"{row.get('game', '')} {row.get('package', '')}".strip() or f"row {i + 1}"
+            try:
+                min_price = _text(row.get("min_price"), "min price")
+                max_price = _text(row.get("max_price"), "max price")
+                enabled = _flag(row.get("enabled"), "ON")
+                allow_big = _flag(row.get("allow_big_change"), "big change")
+            except ConfigError as exc:
+                errors.append(f"{label}: {exc}")
+                continue
             if not min_price:
-                if row.get("enabled") or max_price:
+                if enabled or max_price:
                     errors.append(f"{label}: min price is required")
                 continue  # no rule for this offer
             try:
                 edited.append(parse_bidding_config({"offers": [{
                     "id": row.get("id", ""), "note": label, "min_price": min_price,
-                    "max_price": max_price or None, "enabled": bool(row.get("enabled")),
-                    "allow_big_change": bool(row.get("allow_big_change")),
+                    "max_price": max_price or None, "enabled": enabled,
+                    "allow_big_change": allow_big,
                 }]}).offers[0])
             except ConfigError as exc:
                 errors.append(f"{label}: {str(exc).split('has errors: ', 1)[-1]}")
         if errors:
             raise ConfigError("; ".join(errors))
-        shown = {str(r.get("id")) for r in payload.get("rows") or []}
+        shown = {str(r.get("id")) for r in rows}
         kept = [r for r in current.offers if r.id not in shown]
-        if payload.get("rows"):
+        if rows:
             # Drop settings of offers that no longer exist on Eldorado (deleted by the seller).
             try:
                 existing = {o.id for o in OfferService(self._client, AuditLogger()).list_mine()}
@@ -127,7 +161,7 @@ class Dashboard:
         config = parse_bidding_config({
             "undercut": payload.get("undercut", str(current.undercut)),
             "interval_seconds": payload.get("interval_seconds", current.interval_seconds),
-            "paused": bool(payload.get("paused", current.paused)),
+            "paused": payload.get("paused", current.paused),
             "offers": [r.model_dump() for r in kept + edited],
         })
         save_bidding_config(config, self._path)
@@ -138,7 +172,11 @@ class Dashboard:
         config = self.config()
         if not config.enabled_rules():
             return []
-        report = Bidder(self._client, AuditLogger(), config).plan()
+        bidder = Bidder(self._client, AuditLogger(), config)
+        memory = self._bot_memory()
+        if memory is not None:
+            bidder.restore_memory(memory)  # a copy: planning here never changes the bot
+        report = bidder.plan()
         return [{
             "id": d.offer_id, "label": d.label, "action": d.kind, "reason": d.reason,
             "current": _s(d.current), "lowest": _s(d.lowest_competitor), "target": _s(d.target),

@@ -248,4 +248,6 @@ eldorado app
 | 50% guard | Ek bar e 50% er beshi change hole skip, jodi na offer e `allow_big_change = true` thake |
 | Pilot | Protita cycle er prothom change ta pilot. Pilot fail korle oi cycle er baki change hobe na |
 | Write outcome unknown | Pura bot thame (timeout ba 5xx er por kono retry na) |
+| Audit log likha jay na | Unknown outcome er moto: `eldorado app` nijei paused hoy, `bid run` thame. Audit record chara bot cholte thakbe na, tai unknown write abar pathano hoy na |
+| Cycle er majhe Pause | Protita live write er age `paused` abar pora hoy. Pause hole cycle er baki write pathano hoy na (`not_sent`) |
 | Confirm | Start er shomoy ekbar confirm, `--yes` dile na |

@@ -41,8 +41,8 @@ def _root() -> None:
 
 
 def _go_home() -> None:
-    """ELDORADO_HOME (set by bin/eldorado.cmd) makes .env, bidding.toml and logs/ resolve
-    to the project folder, so `eldorado` works from any directory."""
+    """Optional ELDORADO_HOME (e.g. set by a launcher script) makes .env, bidding.toml and
+    logs/ resolve to the project folder, so `eldorado` works from any directory."""
     home = os.environ.get("ELDORADO_HOME", "").strip()
     if not home:
         return

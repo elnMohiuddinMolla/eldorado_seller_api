@@ -5,6 +5,7 @@
 
 # Personal bidding config (offer ids and price floors)
 bidding.toml
+bidding.toml.tmp
 
 # Audit logs (may contain offer and order ids)
 logs/

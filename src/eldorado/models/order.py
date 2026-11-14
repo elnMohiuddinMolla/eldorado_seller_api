@@ -38,16 +38,22 @@ class SellerOrder(BaseModel):
 
     @classmethod
     def from_api(cls, raw: dict[str, object], game_names: dict[str, str]) -> SellerOrder:
+        """Raises ValueError (pydantic's ValidationError is one) when the shape is unexpected."""
         details = raw.get("orderOfferDetails") or {}
-        assert isinstance(details, dict)
-        attrs = details.get("offerAttributesProperties") or []
-        package = " ".join(
-            str(v) for a in attrs if isinstance(a, dict) for v in (a.get("values") or [])[:1]
-        )
-        game_id = details.get("gameId")
         state = raw.get("state") or {}
         total = raw.get("totalPrice") or {}
-        assert isinstance(state, dict) and isinstance(total, dict)
+        if not (isinstance(details, dict) and isinstance(state, dict) and isinstance(total, dict)):
+            raise ValueError("unexpected order shape")
+        if raw.get("id") in (None, ""):
+            raise ValueError("order has no id")
+        attrs = details.get("offerAttributesProperties") or []
+        if not isinstance(attrs, list):
+            attrs = []
+        package = " ".join(
+            str(v) for a in attrs if isinstance(a, dict)
+            for v in (a.get("values") if isinstance(a.get("values"), list) else [])[:1]
+        )
+        game_id = details.get("gameId")
         return cls(
             id=str(raw["id"]),
             state=str(state.get("state", "?")),

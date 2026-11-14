@@ -3,7 +3,7 @@
 This document describes the proposed architecture of the **Eldorado Seller API CLI Tool**.
 
 > **Source of truth:** [prd.md](prd.md) defines the tech stack, folder structure, CLI commands and safety rules. If this file disagrees with `prd.md`, `prd.md` wins.
-> **Endpoints:** The token endpoint and `PUT /api/orders/me/{orderId}/delivered` are confirmed (the deliver request body is not). Every other endpoint is unknown (see [api-spec.md](api-spec.md)), so the diagrams below name *operations*, not URL paths.
+> **Endpoints:** Every path the tool calls is `[Confirmed]` in [api-spec.md](api-spec.md) (Swagger, several also seen live). Live "mark delivered" stays disabled until the user enables it (api-spec.md 4.4). The diagrams below name *operations*; see api-spec.md for the paths.
 
 ---
 
@@ -35,7 +35,7 @@ graph TD
 
     Env[(.env<br/>Client ID and secret)] --> TM
     TM -->|POST /api/authentication/seller/token| Auth[Eldorado auth endpoint]
-    HTTP -->|live API calls<br/>paths unknown| API[Eldorado Seller API]
+    HTTP -->|live API calls<br/>paths in api-spec.md| API[Eldorado Seller API]
 ```
 
 ---
@@ -59,11 +59,11 @@ Folder names follow `prd.md` section 6.1.
 - `OfferService`: selects offers, computes the before/after diff, applies the 50% price guard, runs the pilot, then the rest, and builds the success/failure summary.
 - `OrderService`: marks an order delivered (dry-run only; live is disabled).
 - `AccountService`: sets online or offline.
-- `Bidder` (`services/bidding.py`, F16): each cycle reads your TopUp offers (`/api/predefinedOffers/me`) and the market for each game once (`/api/predefinedOffers/game`), then `decide()` (a pure function) picks the target price per offer from `bidding.toml`. The first change is the pilot; a failed pilot stops the cycle; an unknown write outcome stops the bot. 1 second delay between writes. `eldorado bid run` repeats the cycle every `interval_seconds` (default 300).
+- `Bidder` (`services/bidding.py`, F16): each cycle reads your TopUp offers (`/api/predefinedOffers/me`) and the market for each game once (`/api/predefinedOffers/game`), then `decide()` (a pure function) picks the target price per offer from `bidding.toml`. The first change is the pilot; a failed pilot stops the cycle; an unknown write outcome or an audit log that cannot be written stops the bot. `paused` is re-read before every live write, so a pause mid-cycle marks the remaining changes `not_sent`. 1 second delay between writes. `eldorado bid run` repeats the cycle every `interval_seconds` (default 300).
 - Writes an audit record for every change, including dry runs.
 - When `dry_run=True`, a service never calls a write method on the client.
 
-- `eldorado app` (`services/bot_runner.py`): the bot runs in a daemon thread next to the page server, each with its own HTTP client. Starts with `paused = true`; a page Save wakes the bot immediately. `WriteOutcomeUnknownError` or `AuthenticationError` sets `paused = true` in `bidding.toml` and shows the error on the page (no retry, no silent stop).
+- `eldorado app` (`services/bot_runner.py`): the bot runs in a daemon thread next to the page server, each with its own HTTP client. Starts with `paused = true`; a page Save wakes the bot immediately. `WriteOutcomeUnknownError`, `AuthenticationError` or `AuditLogError` sets `paused = true` in `bidding.toml` and shows the error on the page (no retry, no silent stop).
 - `eldorado ui` (`cli/ui.py`, `cli/ui_page.py`, `services/dashboard.py`, F17): stdlib `http.server` bound to 127.0.0.1. Host header check + random per-run token on every API call + strict CSP. Reads offers/market, saves `bidding.toml` atomically, previews `Bidder.plan()`. Never writes to Eldorado.
 - Config for the bidder: `core/bidding_config.py` reads `bidding.toml` (stdlib `tomllib`, no new dependency).
 

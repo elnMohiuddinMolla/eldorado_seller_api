@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from eldorado.core.exceptions import AuditLogError
+from eldorado.core.exceptions import AuditLogError, WriteOutcomeUnknownError
 from eldorado.core.logging import redact
 
 DEFAULT_AUDIT_PATH = Path("logs") / "audit.jsonl"
@@ -100,3 +100,22 @@ class AuditLogger:
             target = self.path.with_name(f"audit-{stamp}-{n}.jsonl")
             n += 1
         self.path.rename(target)
+
+
+def record_unknown(
+    audit: AuditLogger, exc: WriteOutcomeUnknownError, **fields: Any
+) -> None:
+    """Log an unknown write outcome.
+
+    If the audit log fails too, raise a WriteOutcomeUnknownError that says so. An AuditLogError
+    must never replace the unknown outcome: callers stop or pause only on the unknown outcome,
+    and would otherwise treat it as an ordinary error and send the write again.
+    """
+    try:
+        audit.write(outcome="unknown", dry_run=False, http_status=exc.http_status,
+                    message=str(exc), **fields)
+    except AuditLogError as log_exc:
+        raise WriteOutcomeUnknownError(
+            f"{exc} The audit log could not be written either: {log_exc}",
+            http_status=exc.http_status,
+        ) from None
