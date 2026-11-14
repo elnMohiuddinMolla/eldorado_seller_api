@@ -165,10 +165,11 @@ tr.dirty td:first-child { box-shadow: inset 3px 0 var(--accent); }
       <label>Check every <input type="text" inputmode="numeric" id="interval" class="price" style="width:56px"
         title="Minutes between checks, 1 to 1440"> min</label>
       <label>Undercut <input type="text" inputmode="decimal" id="undercut" class="price" style="width:70px"
-        title="How much below the cheapest other seller"> USD</label>
+        title="How much below the cheapest other seller, 0.01 to 1.00"> USD</label>
     </div>
     <p class="help"><b>Min</b> = never sell below. <b>Max</b> = highest price when a cheaper seller disappears and the
-      bot looks for the next one. Tick <b>ON</b> to let the bot manage an offer. Changes take effect right after Save.</p>
+      bot looks for the next one. Tick <b>ON</b> to let the bot manage an offer. <b>Big change</b> allows a price change of more than 50% at once.
+      The bot uses saved changes at its next check (right away when started with <code>eldorado app</code>).</p>
   </section>
 
   <section class="card" id="previewCard" style="display:none">
@@ -187,11 +188,11 @@ tr.dirty td:first-child { box-shadow: inset 3px 0 var(--accent); }
       <div class="chips" id="chips"></div>
       <span class="spacer"></span>
       <label class="tog"><input type="checkbox" id="onlyOn"> only ON</label>
-      <label class="tog"><input type="checkbox" id="onlyBehind"> only not #1</label>
+      <label class="tog"><input type="checkbox" id="onlyBehind"> only where I'm not #1</label>
     </div>
     <div class="scroll"><table>
       <thead><tr><th>Package</th><th>State</th><th class="num">My price</th><th class="num">Lowest</th><th>Position</th>
-        <th class="num">Min</th><th class="num">Max</th><th class="c">ON</th><th class="c">Big change</th></tr></thead>
+        <th class="num" title="Never sell below this">Min</th><th class="num" title="Highest price when searching for the next seller">Max</th><th class="c" title="Let the bot manage this offer">ON</th><th class="c" title="Allow a price change of more than 50% at once">Big change</th></tr></thead>
       <tbody id="rows"><tr><td colspan="9" class="empty">Loading from Eldorado...</td></tr></tbody>
     </table></div>
   </section>
@@ -209,6 +210,7 @@ const TOKEN = "__TOKEN__";
 let data = { rows: [] };
 let saved = "";
 let gameFilter = "";
+let botHere = true;  // false when the bot runs in another window (eldorado ui + bid run)
 const collapsed = new Set();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -268,7 +270,7 @@ function position(r) {
     return '<span class="pill ok">&#x2714; You\'re #1</span>';
   }
   const gap = Number(r.price) - Number(r.lowest);
-  if (r.min_price && Number(r.lowest) < Number(r.min_price)) return '<span class="pill bad">below your Min</span>';
+  if (r.min_price && Number(r.lowest) < Number(r.min_price)) return '<span class="pill bad">rival below your Min</span>';
   if (gap <= 0) return '<span class="pill ok">tied</span>';
   return '<span class="pill warn">+' + gap.toFixed(2) + " above</span>";
 }
@@ -381,7 +383,7 @@ async function load(fresh) {
     saved = snapshot(); updateSaveBar();
     showBot(); renderChips(); render(); refreshStatus();
     const age = data.data_age_seconds || 0;
-    $("offersInfo").textContent = data.rows.length + " offers · " + (age ? "prices from " + age + " s ago" : "live prices");
+    $("offersInfo").textContent = data.rows.length + " offers · " + (age ? "prices are " + age + " s old" : "live prices");
   } catch (e) { toast("bad", "Could not load: " + e.message, 0); }
   finally { $("reload").disabled = false; }
 }
@@ -398,7 +400,8 @@ async function save() {
     data.interval_seconds = minutes * 60;
     data.rows.forEach((r) => delete r._dirty);
     saved = snapshot(); updateSaveBar(); renderChips(); render();
-    toast("ok", "Saved. " + res.enabled + " offer(s) ON, checks every " + minutes + " min. The bot uses it right away.");
+    toast("ok", "Saved. " + res.enabled + " offer(s) ON, checks every " + minutes + " min. " +
+      (botHere ? "The bot uses it right away." : "The bot uses it at its next check."));
     setTimeout(() => { refreshStatus(); refreshActivity(); }, 4000);
   } catch (e) { toast("bad", "Not saved: " + e.message, 0); }
   finally { $("save").disabled = false; }
@@ -420,7 +423,8 @@ $("botSwitch").addEventListener("click", async () => {
   try {
     await call("POST", "/api/config", { paused: want, rows: [] });
     data.paused = want; showBot();
-    toast(want ? "info" : "ok", want ? "Bot paused. Nothing is sent from now on." : "Bot running. First check starts now.");
+    toast(want ? "info" : "ok", want ? "Bot paused. Nothing is sent from now on." :
+      (botHere ? "Bot running. First check starts now." : "Bot running. It starts at its next check."));
     setTimeout(refreshStatus, 3000); setTimeout(refreshActivity, 8000);
   } catch (e) { toast("bad", "Could not switch: " + e.message, 0); }
 });
@@ -429,6 +433,7 @@ async function refreshStatus() {
   let s;
   try { s = await call("GET", "/api/status"); } catch (e) { $("stBotS").textContent = "status unavailable"; return; }
   const card = $("stBot");
+  botHere = s.state !== "none";
   if (s.state === "none") {
     $("stBotV").textContent = data.paused ? "Paused" : "Running";
     $("stBotS").textContent = "bot runs in its own window"; card.className = "stat"; return;
@@ -450,11 +455,13 @@ async function refreshActivity() {
   $("stTodayV").textContent = a.changed_today;
   $("stTodayS").textContent = a.items.length ? "last at " + a.items[0].time : "no changes yet";
   const cls = { success: "ok", failed: "bad", unknown: "bad", dry_run: "muted" };
+  const names = { success: "Changed", failed: "Failed", unknown: "Unknown, check Eldorado", dry_run: "Dry run" };
   $("actRows").innerHTML = a.items.map((x) => {
-    const down = x.before && x.after && Number(x.after) < Number(x.before);
+    const b = num(x.before), n = num(x.after);
+    const arrow = b == null || n == null || b === n ? "" : (n < b ? "↓" : "↑");
     return "<tr><td>" + esc(x.time) + ' <span class="note">' + esc(x.date) + "</span></td><td>" + esc(x.label) +
-      '</td><td class="num">' + money(x.before) + " → <b>" + money(x.after) + "</b> " + (down ? "↓" : "↑") +
-      '</td><td><span class="pill ' + (cls[x.outcome] || "muted") + '">' + esc(x.outcome) + "</span></td></tr>";
+      '</td><td class="num">' + money(x.before) + " → <b>" + money(x.after) + "</b> " + arrow +
+      '</td><td><span class="pill ' + (cls[x.outcome] || "muted") + '">' + esc(names[x.outcome] || x.outcome) + "</span></td></tr>";
   }).join("") || '<tr><td colspan="4" class="empty">No price changes yet.</td></tr>';
   $("actInfo").textContent = "newest first";
 }
@@ -469,7 +476,7 @@ $("preview").addEventListener("click", async () => {
     const cls = { change: "warn", keep: "ok", skip: "muted" };
     $("previewRows").innerHTML = res.decisions.map((d) =>
       "<tr><td>" + esc(d.label) + '</td><td class="num">' + money(d.current) + '</td><td class="num">' + money(d.lowest) +
-      '</td><td class="num"><b>' + money(d.target) + '</b></td><td><span class="pill ' + cls[d.action] + '">' + esc(d.action) +
+      '</td><td class="num"><b>' + money(d.target) + '</b></td><td><span class="pill ' + cls[d.action] + '">' + esc({ change: "Change", keep: "Keep", skip: "Skip" }[d.action] || d.action) +
       '</span></td><td class="note">' + esc(d.reason) + "</td></tr>").join("")
       || '<tr><td colspan="6" class="empty">No offer is ON.</td></tr>';
     $("previewCard").style.display = "";
