@@ -1,10 +1,14 @@
-# Eldorado Seller API Tool
+# Eldorado.gg Seller API Tool — Auto-Bidding Bot & Price Automation
 
-A command line (CLI) tool built on the official Eldorado.gg **Seller API**. It helps verified sellers manage their offers (prices, pause/resume), orders and account status (online/offline) quickly and with fewer mistakes.
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status: Live](https://img.shields.io/badge/status-active%20%2F%20production-brightgreen.svg)]()
+[![Platform: Windows](https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20macos-lightgrey.svg)]()
+
+A high-performance command line (CLI) tool and automated pricing bot built on the official **Eldorado.gg Seller API**. Designed for verified sellers to automate price undercutting, prevent price wars with smart floor limits, manage offers, and receive instant real-time desktop alerts for pending delivery orders.
 
 > [!IMPORTANT]
-> **Status: ✅ live.** The tool works with **TopUp offers** only, for **any game**. New offers you upload appear on the page by themselves, and deleted ones disappear. The main feature is **auto bidding**: keep each offer's price 0.01 below the cheapest other seller, never below your Min.
-> Everything is set from a local page: run `eldorado app`, then open **http://127.0.0.1:8765**.
+> **Status: ✅ Production Ready.** Built specifically for **TopUp (predefined) offers** across **any game** (Call of Duty Mobile, Brawl Stars, Clash of Clans, Roblox, etc.). Features an integrated local web UI (`http://127.0.0.1:8765`), smart price recovery, pilot validation, and non-destructive dry-run capabilities.
 
 ---
 
