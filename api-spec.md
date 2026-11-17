@@ -154,7 +154,7 @@ Both use the same shape. Replace `X` with `flexibleOffersUser` (account) or `pre
 | Capability | PRD | Method & Path | Params / Body |
 |---|---|---|---|
 | List (account) | F2 | `GET /api/flexibleOffers/me/search` | query `offerState`, `gameId`, `category`, `searchQuery`, `pageIndex`, `pageSize`, ... Response `IndexBasedPagedResult<FlexibleOfferPrivateDTO>` |
-| **Market (all sellers)** | F16 | `GET /api/predefinedOffers/game` (public, group `PredefinedOfferPublic`) | query `gameId`, `category`, `tradeEnvironmentId`, trade env values, `queryAttributes`, `pageIndex`, `pageSize`. Response `IndexBasedPagedResult<PredefinedOfferGroupPublicViewModel>` = `{offer, user: {id, username, isVerifiedSeller}, userOrderInfo, deliveryTime}`. **Live (2026-11-14): returns ONE offer per package** (looks like the cheapest; my offers were always above it). Package filters (`queryAttributes` in any encoding) do not reveal more sellers. The package is in `offer.attributes[].value` (`{"id": "80-cp", "name": "80 CP"}`), a field the Swagger `IOfferAttributeDTO` schema leaves out. `offerAttributeIdValues` and `tradeEnvironmentValues` are usually empty |
+| **Market (all sellers)** | F16 | `GET /api/predefinedOffers/game` (public, group `PredefinedOfferPublic`) | query `gameId`, `category`, `tradeEnvironmentId`, trade env values, `queryAttributes`, `pageIndex`, `pageSize`. Response `IndexBasedPagedResult<PredefinedOfferGroupPublicViewModel>` = `{offer, user: {id, username, isVerifiedSeller}, userOrderInfo, deliveryTime}`. **Live (2026-11-14, verified 2026-11-17): returns ONE offer per package** (the cheapest; when our offer is lowest, only our offer is returned). Package filters (`queryAttributes` in any encoding) do not reveal more sellers. The package is in `offer.attributes[].values` array (e.g. `[{"id": "80-cp", "name": "80 CP"}]`) and/or `offer.attributes[].value`, a field the Swagger `IOfferAttributeDTO` schema leaves out. `offerAttributeIdValues` and `tradeEnvironmentValues` are usually empty |
 | List (predefined) | F2 | `GET /api/predefinedOffers/me` | query `offerState`, `gameId`, `category`, `pageIndex`, `pageSize`, ... Response `IndexBasedPagedResult<PredefinedOfferPrivateViewDTO>` |
 | Change price | F3 | `PUT /api/X/me/{id}/changePrice` | body `MoneyBaseDTO` |
 | Change quantity (predefined only) | F3 | `PUT /api/predefinedOffersUser/me/{id}/changeQuantity` | body: bare JSON integer |
@@ -217,8 +217,8 @@ Offer (item / account / predefined list items, shared fields)
                           guaranteedDeliveryTime, offerState, offerVersion, expireDate, ... }
 Order (OrderPrivateViewModel)
                         { id (uuid), offerId, purchaseQuantity, totalPrice: MoneyBaseDTO,
-                          state: { state: OrderState, createdDate }, createdDate,
-                          deliveryTime, buyerUsername, sellerUsername, orderOfferDetails, ... }
+                          state: { state: OrderState, createdDate } OR plain string OrderState (live 2026-11-17),
+                          createdDate, deliveryTime, buyerUsername, sellerUsername, orderOfferDetails, ... }
 ProblemDetails          { type, title, status, detail, instance }   (RFC 7807 error body)
 ```
 

@@ -263,12 +263,12 @@ eldorado app
 |---|---|
 | Undercut | Fixed `0.01` (can be changed in `bidding.toml`) |
 | Target price | `min(other sellers' Active prices) - 0.01`, rounded down to 2 decimals |
-| Floor | Every offer needs a `min_price`. If the target is below the floor, price = floor |
+| Floor | Every offer needs a `min_price`. If the target is below the floor, price = floor. Additionally guarded by a hard pre-write safety check in `Bidder.run_cycle` that blocks any write below `min_price` |
 | Ceiling | Optional `max_price`. If the target is above it, price = ceiling |
 | No competitor | Price is not changed |
 | Held at Min, then #1 | The cheaper seller (below Min) has left. With `max_price`, the bot goes to `max_price` for one cycle. The next cycle sees the real next seller on the market and goes 0.01 below it (e.g. 4.50 -> 4.49). Without `max_price` it stays at Min |
 | Already #1 | Price is not changed. The market endpoint returns **only one offer** per package (the cheapest), so when you are #1 the 2nd price is not visible. The user wanted "raise the price", but the API makes that impossible (live, 2026-11-14) |
-| Package match | `attributes[].id` + `attributes[].value.id`, e.g. `call-of-duty-mobile-cp=80-cp`. Offers with an unknown package are skipped |
+| Package match | `attributes[].id` + `attributes[].values[].id` (or `value.id`), e.g. `call-of-duty-mobile-cp=80-cp`. Offers with an unknown package are skipped |
 | Game | No filter by game. Names: `GAME_NAMES` (59 CODM, 56 Brawl Stars, 18 Clash of Clans, 52 Clash Royale, 70 Roblox, 21 PUBG Mobile, 254 TikTok, 46 Free Fire, 378 Yalla Ludo, 385 ChatGPT); for an unknown game the name comes from the offer's SEO alias |
 | Region | The package match also requires the same trade environment (e.g. Free Fire's Region) |
 | Own offers | Not counted as competitors |
