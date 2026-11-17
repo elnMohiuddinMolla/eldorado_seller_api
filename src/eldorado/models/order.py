@@ -38,14 +38,29 @@ class SellerOrder(BaseModel):
 
     @classmethod
     def from_api(cls, raw: dict[str, object], game_names: dict[str, str]) -> SellerOrder:
-        """Raises ValueError (pydantic's ValidationError is one) when the shape is unexpected."""
+        """Raises ValueError (pydantic's ValidationError is one) when the shape is unexpected.
+
+        ``state`` may arrive as either a nested object ``{"state": "Paid", "createdDate": "…"}``
+        (Swagger spec shape) or as a plain string ``"Paid"`` (observed on some live orders).
+        Both forms are accepted.  Any other type raises ValueError so the order is skipped
+        instead of silently dropped or misread.
+        """
         details = raw.get("orderOfferDetails") or {}
-        state = raw.get("state") or {}
         total = raw.get("totalPrice") or {}
-        if not (isinstance(details, dict) and isinstance(state, dict) and isinstance(total, dict)):
+        if not (isinstance(details, dict) and isinstance(total, dict)):
             raise ValueError("unexpected order shape")
         if raw.get("id") in (None, ""):
             raise ValueError("order has no id")
+
+        # Accept state as {"state": "Paid", …} or as the plain string "Paid".
+        state_raw = raw.get("state")
+        if isinstance(state_raw, dict):
+            state_str = str(state_raw.get("state", "?"))
+        elif isinstance(state_raw, str) and state_raw:
+            state_str = state_raw
+        else:
+            raise ValueError(f"unexpected order shape: state={state_raw!r}")
+
         attrs = details.get("offerAttributesProperties") or []
         if not isinstance(attrs, list):
             attrs = []
@@ -56,7 +71,7 @@ class SellerOrder(BaseModel):
         game_id = details.get("gameId")
         return cls(
             id=str(raw["id"]),
-            state=str(state.get("state", "?")),
+            state=state_str,
             created=str(raw.get("createdDate", "")),
             quantity=int(raw.get("purchaseQuantity") or 0),  # type: ignore[call-overload]
             total=str(total.get("amount", "?")),

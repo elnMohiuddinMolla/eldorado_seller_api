@@ -102,3 +102,26 @@ def test_pause_5xx_is_unknown_and_stops(base: BaseClient, api: respx.MockRouter,
         ["a", "b"], paused=True, dry_run=False)
     assert [r.outcome for r in results] == ["unknown", "not_sent"]
     assert ra.call_count == 1
+
+
+def test_offer_attributes_with_values_array() -> None:
+    """Live Eldorado API returns attributes[].values (list) rather than attribute.value."""
+    from eldorado.models.offer import Offer
+
+    raw = {
+        "id": "test-id",
+        "gameId": "59",
+        "pricePerUnit": {"amount": 10.0, "currency": "USD"},
+        "attributes": [
+            {
+                "id": "call-of-duty-mobile-cp",
+                "name": "CP",
+                "values": [{"id": "12000-cp", "name": "12000 CP"}],
+            }
+        ],
+    }
+    offer = Offer.model_validate(raw)
+    assert offer.package_name() == "12000 CP"
+    assert offer.package_parts() == ["call-of-duty-mobile-cp=12000-cp"]
+    assert offer.product_key() == ("59", "|", "call-of-duty-mobile-cp=12000-cp")
+

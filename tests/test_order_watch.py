@@ -47,6 +47,29 @@ def test_unknown_game_falls_back_to_title() -> None:
     assert SellerOrder.from_api(order_json("a1", game_id="999"), GAME_NAMES).game == "CP"
 
 
+def test_from_api_accepts_state_as_plain_string() -> None:
+    """Live API may return state as a bare string instead of {state, createdDate} object.
+
+    Regression for the warning "skipped N order(s) with an unexpected format" that fires
+    when isinstance(state, dict) is False.  Both shapes must be parsed without skipping.
+    """
+    raw = order_json("a2", state="Completed")
+    # Replace nested dict state with a plain string — the live variant that caused skips.
+    raw["state"] = "Completed"
+    o = SellerOrder.from_api(raw, GAME_NAMES)
+    assert o.state == "Completed"
+    assert o.id == "a2"
+
+
+def test_from_api_rejects_missing_state() -> None:
+    """state=None must still raise ValueError so the order is counted as skipped."""
+    import pytest
+    raw = order_json("a3")
+    raw["state"] = None
+    with pytest.raises((ValueError, TypeError)):
+        SellerOrder.from_api(raw, GAME_NAMES)
+
+
 def test_age_minutes() -> None:
     now = datetime(2026, 11, 14, 11, 30, tzinfo=timezone.utc)
     assert age_minutes("2026-11-14T10:00:00Z", now) == 90

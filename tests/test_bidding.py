@@ -165,6 +165,30 @@ def test_cycle_live_sends_price_body(mocked: respx.MockRouter, base: BaseClient,
     assert sleeps == [1.0]  # delay between writes
 
 
+def test_cycle_hard_guard_blocks_write_below_min_price(mocked: respx.MockRouter, base: BaseClient,
+                                                        tmp_path: Path) -> None:
+    """Even if a bug produces target < min_price, run_cycle must never write to Eldorado."""
+    config = BiddingConfig(offers=[OfferRule(id="o1", min_price=Decimal("2.00"))])
+    r1 = mocked.put(change_price_path("o1")).mock(return_value=httpx.Response(200))
+    bidder = Bidder(OffersClient(base), AuditLogger(tmp_path / "a.jsonl"), config, sleep=lambda s: None)
+
+    # Force a decision with target below min_price
+    from eldorado.services.bidding import Decision, CycleReport
+    bad_decision = Decision(
+        offer_id="o1", label="o1", kind="change", reason="test",
+        current=Decimal("2.50"), target=Decimal("1.50")  # 1.50 < min_price 2.00!
+    )
+    bidder.plan = lambda: CycleReport(decisions=[bad_decision])  # type: ignore[method-assign]
+    report = bidder.run_cycle(dry_run=False)
+
+    assert r1.call_count == 0  # HTTP PUT was NEVER sent!
+    assert report.changes()[0].result == "failed"
+    recs = _records(tmp_path / "a.jsonl")
+    assert recs[0]["outcome"] == "failed"
+    assert "SECURITY GUARD" in recs[0]["message"]
+
+
+
 def test_failed_pilot_stops_the_cycle(mocked: respx.MockRouter, base: BaseClient,
                                       config: BiddingConfig, tmp_path: Path) -> None:
     mocked.put(change_price_path("o1")).mock(return_value=httpx.Response(400, json={"title": "bad"}))

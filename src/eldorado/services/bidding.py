@@ -324,6 +324,22 @@ class Bidder:
             if pilot_done:
                 self._sleep(WRITE_DELAY_SECONDS)
             assert decision.target is not None
+
+            # HARD SAFETY GUARD: Never, under any circumstances, send a price below rule.min_price.
+            rule = next((r for r in self._config.offers if r.id == decision.offer_id), None)
+            if rule and decision.target < rule.min_price:
+                decision.result = "failed"
+                self._audit.write(
+                    action=ACTION_BID, entity_type="offer", entity_id=decision.offer_id,
+                    before=before, after=after, dry_run=False, pilot=decision.pilot,
+                    outcome="failed", http_status=None,
+                    message=f"SECURITY GUARD: target {decision.target} is below min_price {rule.min_price}",
+                )
+                if decision.pilot:
+                    stop = True
+                pilot_done = True
+                continue
+
             try:
                 status = self._client.change_price(
                     decision.offer_id, Money(amount=decision.target, currency=SUPPORTED_CURRENCY)

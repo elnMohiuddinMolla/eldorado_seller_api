@@ -37,13 +37,22 @@ class LibraryProperty(BaseModel):
 
 class OfferAttribute(BaseModel):
     """Live shape (not in Swagger): {"id": "call-of-duty-mobile-cp", "name": "CP",
-    "value": {"id": "80-cp", "name": "80 CP"}, "values": [...]}. `value` is the package."""
+    "values": [{"id": "80-cp", "name": "80 CP"}], "value": ...}. The selected package is in `values` or `value`."""
 
     model_config = ConfigDict(extra="ignore")
 
     id: str | None = None
     name: str | None = None
     value: LibraryProperty | None = None
+    values: list[LibraryProperty] | None = None
+
+    @property
+    def selected(self) -> LibraryProperty | None:
+        if self.value is not None:
+            return self.value
+        if self.values:
+            return self.values[0]
+        return None
 
 
 class Offer(BaseModel):
@@ -71,11 +80,11 @@ class Offer(BaseModel):
 
     def package_parts(self) -> list[str]:
         """Package identity, e.g. ['call-of-duty-mobile-cp=80-cp']. Empty when unknown."""
-        parts = [
-            f"{a.id}={a.value.id or a.value.name}"
-            for a in self.attributes or []
-            if a.id and a.value is not None and (a.value.id or a.value.name)
-        ]
+        parts = []
+        for a in self.attributes or []:
+            prop = a.selected
+            if a.id and prop is not None and (prop.id or prop.value or prop.name):
+                parts.append(f"{a.id}={prop.id or prop.value or prop.name}")
         parts += [p.key() for p in self.attribute_values or []]
         return sorted(parts)
 
@@ -85,7 +94,13 @@ class Offer(BaseModel):
         return (self.game_id or "", *env, "|", *self.package_parts())
 
     def package_name(self) -> str:
-        names = [a.value.name or a.value.id or "" for a in self.attributes or [] if a.value]
+        names = []
+        for a in self.attributes or []:
+            prop = a.selected
+            if prop:
+                val = prop.name or prop.value or prop.id or ""
+                if val:
+                    names.append(val)
         names += [p.value or p.name or "" for p in self.attribute_values or []]
         return " ".join(n for n in names if n)
 
